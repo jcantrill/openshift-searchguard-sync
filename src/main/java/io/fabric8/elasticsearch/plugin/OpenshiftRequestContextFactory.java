@@ -22,8 +22,10 @@ import static io.fabric8.elasticsearch.plugin.KibanaIndexMode.UNIQUE;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -82,6 +84,7 @@ public class OpenshiftRequestContextFactory {
      *             exceptions
      */
     public OpenshiftRequestContext create(final RestRequest request, final UserProjectCache cache) throws Exception {
+        logRequest(request, cache);
         Set<String> projects = new HashSet<>();
         boolean isClusterAdmin = false;
         String user = utils.getUser(request);
@@ -95,7 +98,30 @@ public class OpenshiftRequestContextFactory {
             }
             return new OpenshiftRequestContext(user, token, isClusterAdmin, projects, getKibanaIndex(user, isClusterAdmin), this.kibanaIndexMode);
         }
-        return OpenshiftRequestContext.EMPTY; // nothing more we can do here
+        LOGGER.debug("Returing EMPTY request context; either was provided client cert or empty token.");
+        return OpenshiftRequestContext.EMPTY;
+    }
+    
+    private void logRequest(final RestRequest request, final UserProjectCache cache) {
+        if (LOGGER.isDebugEnabled()) {
+            String user = utils.getUser(request);
+            String token = utils.getBearerToken(request);
+            LOGGER.debug("Handling Request... {}", request.uri());
+            if(LOGGER.isTraceEnabled()) {
+                List<String> headers = new ArrayList<>();
+                for (Entry<String, List<String>> entry : request.getHeaders().entrySet()) {
+                    if(RequestUtils.AUTHORIZATION_HEADER.equals(entry.getKey())){
+                        headers.add(entry.getKey() + "=Bearer <REDACTED>");
+                    }else {
+                        headers.add(entry.getKey() + "=" + entry.getValue());
+                    }
+                }
+                LOGGER.trace("Request headers: {}", headers);
+            }
+            LOGGER.debug("Evaluating request for user '{}' with a {} token", user,
+                    (StringUtils.isNotEmpty(token) ? "non-empty" : "empty"));
+            LOGGER.debug("Cache has user: {}", cache.hasUser(user, token));
+        }
     }
 
     // WARNING: This function must perform authentication with the given token.

@@ -17,6 +17,7 @@
 package io.fabric8.elasticsearch.plugin.acl;
 
 import java.io.IOException;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
