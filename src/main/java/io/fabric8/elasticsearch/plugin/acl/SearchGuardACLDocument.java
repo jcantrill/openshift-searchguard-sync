@@ -21,10 +21,14 @@ import java.util.Map;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 public interface SearchGuardACLDocument<T> {
+    
+    static final String EXPIRES = "expires";
 
     XContentBuilder toXContentBuilder();
 
     String getType();
 
     T load(Map<String, Object> sourceAsMap);
+    
+    Long getVersion();
 }
