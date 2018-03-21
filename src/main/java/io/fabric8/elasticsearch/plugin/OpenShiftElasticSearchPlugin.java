@@ -59,6 +59,7 @@ import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
 import com.floragunn.searchguard.SearchGuardPlugin;
+import com.floragunn.searchguard.configuration.ConfigurationLoader;
 
 import io.fabric8.elasticsearch.plugin.acl.DynamicACLFilter;
 import io.fabric8.elasticsearch.plugin.acl.SearchGuardSyncStrategyFactory;
@@ -97,7 +98,7 @@ public class OpenShiftElasticSearchPlugin extends Plugin implements Configuratio
         final KibanaSeed seed = new KibanaSeed(pluginSettings, indexMappingLoader, pluginClient, threadPool);
 
         this.aclFilter = new DynamicACLFilter(cache, pluginSettings, seed, client, contextFactory, documentFactory,
-                threadPool, requestUtils);
+                threadPool, requestUtils, new ConfigurationLoader(client, threadPool, settings));
         this.kibanaReindexAction = new KibanaUserReindexAction(pluginSettings, client, threadPool.getThreadContext());
         OpenShiftElasticSearchService osElasticSearvice = new OpenShiftElasticSearchService(settings, client, cache);
 

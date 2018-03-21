@@ -16,36 +16,29 @@
 
 package io.fabric8.elasticsearch.plugin.acl;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.UnaryOperator;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
@@ -57,6 +50,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
+import com.floragunn.searchguard.configuration.ConfigurationLoader;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
@@ -91,10 +85,12 @@ public class DynamicACLFilter implements ConfigurationSettings {
     private final SearchGuardSyncStrategyFactory documentFactory;
     private final RequestUtils utils;
     private final ThreadPool threadPool;
+    private ConfigurationLoader configLoader;
 
     public DynamicACLFilter(final UserProjectCache cache, final PluginSettings settings, final KibanaSeed seed,
             final Client client, final OpenshiftRequestContextFactory contextFactory,
-            final SearchGuardSyncStrategyFactory documentFactory, ThreadPool threadPool, final RequestUtils utils) {
+            final SearchGuardSyncStrategyFactory documentFactory, ThreadPool threadPool, final RequestUtils utils,
+            final ConfigurationLoader configLoader) {
         this.threadPool = threadPool;
         this.client = client;
         this.cache = cache;
@@ -107,6 +103,7 @@ public class DynamicACLFilter implements ConfigurationSettings {
         this.cdmProjectPrefix = settings.getCdmProjectPrefix();
         this.enabled = settings.isEnabled();
         this.utils = utils;
+        this.configLoader = configLoader;
     }
 
     public RestHandler wrap(final RestHandler original, final UnaryOperator<RestHandler> unaryOperator) {
@@ -122,7 +119,8 @@ public class DynamicACLFilter implements ConfigurationSettings {
         };
     }
 
-    public RestRequest continueProcessing(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
+    public RestRequest continueProcessing(RestRequest request, RestChannel channel, NodeClient client)
+            throws Exception {
         try {
             OpenshiftRequestContext requestContext = OpenshiftRequestContext.EMPTY;
             try (StoredContext threadContext = threadPool.getThreadContext().stashContext()) {
@@ -137,12 +135,11 @@ public class DynamicACLFilter implements ConfigurationSettings {
                         request = utils.modifyRequest(request, requestContext, channel);
                         logRequest(request, cache);
                         final String kbnVersion = getKibanaVersion(request);
-                        if (updateCache(requestContext, kbnVersion)) {
-                            kibanaSeed.setDashboards(requestContext, client, kbnVersion, cdmProjectPrefix);
-                            syncAcl(requestContext);
-                        }
+                        updateCache(requestContext, kbnVersion);
+                        kibanaSeed.setDashboards(requestContext, client, kbnVersion, cdmProjectPrefix);
+                        syncAcl(requestContext);
                     }
-    
+
                 }
             }
             threadPool.getThreadContext().putTransient(OPENSHIFT_REQUEST_CONTEXT, requestContext);
@@ -202,42 +199,28 @@ public class DynamicACLFilter implements ConfigurationSettings {
         return true;
     }
 
-    private <T extends SearchGuardACLDocument<T>> T loadSGConfig(T aclDocument) throws ElasticsearchParseException, IOException {
-        GetResponse response = client.prepareGet(searchGuardIndex, aclDocument.getType(), SEARCHGUARD_CONFIG_ID).get();
-        if(response.isExists()) {
-            BytesReference bytes = response.getSourceAsBytesRef();
-            try (XContentParser parser = XContentFactory.xContent(XContentFactory.xContentType(bytes)).createParser(NamedXContentRegistry.EMPTY, bytes.streamInput())) {
-                
-                parser.nextToken();
-                parser.nextToken();
-                
-                if(!aclDocument.getType().equals((parser.currentName()))) {
-                    return null;
-                }
-                
-                parser.nextToken();
-                
-                XContentBuilder builder = XContentFactory.yamlBuilder();
-                builder.rawValue(new BytesArray(parser.binaryValue()), XContentType.YAML);
-                Map<String, Object> doc = XContentHelper.createParser(NamedXContentRegistry.EMPTY, new BytesArray(builder.string()), XContentType.YAML).map();
-                return aclDocument.load(doc);
-            }
-            
-        }else {
-            LOGGER.error("There ACL {} document does not exist", response.getType()); 
-        }
-        return null;
-    }
-    
     private void syncAcl(OpenshiftRequestContext context) {
+
         LOGGER.debug("Syncing the ACL to ElasticSearch");
         try {
             lock.lock();
             LOGGER.debug("Loading SearchGuard ACL...");
+            final String[] events = new String[] { ConfigConstants.CONFIGNAME_ROLES,
+                ConfigConstants.CONFIGNAME_ROLES_MAPPING };
+            Map<String, Settings> acls = configLoader.load(events, 30, TimeUnit.SECONDS);
 
-            threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            SearchGuardRoles roles = loadSGConfig(new SearchGuardRoles());
-            SearchGuardRolesMapping rolesMapping = loadSGConfig(new SearchGuardRolesMapping());
+            SearchGuardRoles roles = null;
+            SearchGuardRolesMapping rolesMapping = null;
+            for (Entry<String, Settings> entry : acls.entrySet()) {
+                switch (entry.getKey()) {
+                case ConfigConstants.CONFIGNAME_ROLES:
+                    roles = new SearchGuardRoles().load(entry.getValue().getAsStructuredMap());
+                    break;
+                case ConfigConstants.CONFIGNAME_ROLES_MAPPING:
+                    rolesMapping = new SearchGuardRolesMapping().load(entry.getValue().getAsStructuredMap());
+                    break;
+                }
+            }
 
             if (roles == null || rolesMapping == null) {
                 return;
@@ -251,33 +234,19 @@ public class DynamicACLFilter implements ConfigurationSettings {
             rolesSync.syncFrom(cache);
 
             writeAcl(roles, rolesMapping);
+            lock.unlock();
+            notifyConfigUpdate();
         } catch (Exception e) {
             LOGGER.error("Exception while syncing ACL with cache", e);
         } finally {
-            lock.unlock();
-        }
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    private void writeAcl(SearchGuardACLDocument... documents) throws Exception {
-
-        BulkRequestBuilder builder = this.client.prepareBulk().setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-
-        for (SearchGuardACLDocument doc : documents) {
-            Map content = new HashMap();
-            content.put(doc.getType(), doc.toXContentBuilder().bytes());
-            UpdateRequest update = this.client.prepareUpdate(searchGuardIndex, doc.getType(), SEARCHGUARD_CONFIG_ID)
-                    .setDoc(content).request();
-            builder.add(update);
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Built {} update request: {}", doc.getType(),
-                        XContentHelper.convertToJson(doc.toXContentBuilder().bytes(), true, true, XContentType.JSON));
+            if(lock.isHeldByCurrentThread()) {
+                lock.unlock();
             }
         }
-        BulkRequest request = builder.request();
-        BulkResponse response = this.client.bulk(request).actionGet();
-
-        if (!response.hasFailures()) {
+    }
+    
+    private void notifyConfigUpdate() {
+        try {
             ConfigUpdateRequest confRequest = new ConfigUpdateRequest(SEARCHGUARD_INITIAL_CONFIGS);
             ConfigUpdateResponse cur = this.client.execute(ConfigUpdateAction.INSTANCE, confRequest).actionGet();
             final int size = cur.getNodes().size();
@@ -286,7 +255,29 @@ public class DynamicACLFilter implements ConfigurationSettings {
             } else {
                 LOGGER.warn("Failed to reloaded configs", size);
             }
-        } else {
+        } catch (Exception e) {
+            LOGGER.error("Error notifying of config update", e);
+        }
+    }
+
+    @SuppressWarnings({ "rawtypes" })
+    private void writeAcl(SearchGuardACLDocument... documents) throws Exception {
+
+        BulkRequestBuilder builder = this.client.prepareBulk().setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+
+        for (SearchGuardACLDocument doc : documents) {
+            IndexRequestBuilder indexBuilder = this.client.prepareIndex(searchGuardIndex, doc.getType(), SEARCHGUARD_CONFIG_ID)
+                    .setSource(doc.getType(), doc.toXContentBuilder().bytes());
+            builder.add(indexBuilder);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Built {} request: {}", doc.getType(),
+                        XContentHelper.convertToJson(doc.toXContentBuilder().bytes(), true, true, XContentType.JSON));
+            }
+        }
+        BulkRequest request = builder.request();
+        BulkResponse response = this.client.bulk(request).actionGet();
+
+        if (response.hasFailures()) {
             LOGGER.error("Unable to write ACL {}", response.buildFailureMessage());
         }
     }
