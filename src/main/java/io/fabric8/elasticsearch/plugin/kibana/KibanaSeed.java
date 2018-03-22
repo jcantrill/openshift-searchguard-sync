@@ -75,6 +75,10 @@ public class KibanaSeed implements ConfigurationSettings {
     }
 
     public void setDashboards(final OpenshiftRequestContext context, Client client, String kibanaVersion, final String projectPrefix) {
+        if(!pluginClient.indexExists(defaultKibanaIndex)) {
+            LOGGER.debug("Default Kibana index '{}' does not exist. Skipping Kibana seeding", defaultKibanaIndex);
+            return;
+        }
 
         LOGGER.debug("Begin setDashboards:  projectPrefix '{}' for user '{}' projects '{}' kibanaIndex '{}'",
                 projectPrefix, context.getUser(), context.getProjects(), context.getKibanaIndex());
@@ -196,7 +200,7 @@ public class KibanaSeed implements ConfigurationSettings {
             // copy the defaults if the userindex is not the kibanaindex
             if (!kibanaIndexExists && !defaultKibanaIndex.equals(userIndex)) {
                 LOGGER.debug("Copying '{}' to '{}'", defaultKibanaIndex, userIndex);
-
+                
                 GetIndexResponse getResponse = pluginClient.getIndex(defaultKibanaIndex);
                 Map<String, Object> configMapping = getResponse.mappings().get(defaultKibanaIndex).get("config")
                         .getSourceAsMap();
