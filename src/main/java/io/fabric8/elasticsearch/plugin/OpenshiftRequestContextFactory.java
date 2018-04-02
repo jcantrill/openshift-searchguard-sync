@@ -37,6 +37,7 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
 
 import io.fabric8.elasticsearch.plugin.acl.UserProjectCache;
 import io.fabric8.elasticsearch.util.RequestUtils;
@@ -89,6 +90,9 @@ public class OpenshiftRequestContextFactory {
         boolean isClusterAdmin = false;
         String user = utils.getUser(request);
         String token = utils.getBearerToken(request);
+        if(utils.hasUserHeader(request) && StringUtils.isBlank(token)) {
+            throw new ElasticsearchSecurityException("", RestStatus.UNAUTHORIZED);
+        }
         if (StringUtils.isNotBlank(token)){
             user = utils.assertUser(request);
             isClusterAdmin = utils.isOperationsUser(request);
@@ -98,7 +102,7 @@ public class OpenshiftRequestContextFactory {
             }
             return new OpenshiftRequestContext(user, token, isClusterAdmin, projects, getKibanaIndex(user, isClusterAdmin), this.kibanaIndexMode);
         }
-        LOGGER.debug("Returing EMPTY request context; either was provided client cert or empty token.");
+        LOGGER.debug("Returning EMPTY request context; either was provided client cert or empty token.");
         return OpenshiftRequestContext.EMPTY;
     }
     

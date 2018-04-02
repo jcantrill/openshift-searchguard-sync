@@ -70,6 +70,10 @@ public class RequestUtils implements ConfigurationSettings  {
         this.k8ClientFactory = clientFactory;
     }
     
+    public boolean hasUserHeader(RestRequest request) {
+        return StringUtils.isNotEmpty(getUser(request));
+    }
+    
     public String getUser(RestRequest request) {
         return StringUtils.defaultIfEmpty(request.header(proxyUserHeader), "");
     }
@@ -144,7 +148,7 @@ public class RequestUtils implements ConfigurationSettings  {
                             LOGGER.debug("Response: code '{}' {}", response.code(), body);
                         }
                         if(response.code() != RestStatus.OK.getStatus()) {
-                            throw new ElasticsearchSecurityException("Could not authenticate with given token", RestStatus.UNAUTHORIZED);
+                            throw new ElasticsearchSecurityException("", RestStatus.UNAUTHORIZED);
                         }
                         Map<String, Object> userResponse = XContentHelper.convertToMap(XContentFactory.xContent(body), body, false);
                         if(userResponse.containsKey("metadata") && ((Map)userResponse.get("metadata")).containsKey("name")) {
@@ -160,7 +164,7 @@ public class RequestUtils implements ConfigurationSettings  {
                     }
                 }
                 if (null == username) {
-                    throw new ElasticsearchSecurityException("Could not determine username from token", RestStatus.UNAUTHORIZED);
+                    throw new ElasticsearchSecurityException("", RestStatus.UNAUTHORIZED);
                 }
                 return username;
             }
