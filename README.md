@@ -71,7 +71,7 @@ may be found in the `samples` folder.
 
 Following are the dependencies
 
-* [ElasticSearch] (https://github.com/elastic/elasticsearch/tree/5.6.8)
+* [ElasticSearch] (https://github.com/elastic/elasticsearch/tree/5.6.9)
 * [Search-Guard] (https://github.com/floragunncom/search-guard/tree)
 * [Search-Guard-SSL] (https://github.com/floragunncom/search-guard-ssl/tree)
 
