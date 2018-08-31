@@ -18,6 +18,7 @@ package io.fabric8.elasticsearch.plugin.acl;
 
 import static io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.PROJECT_PREFIX;
 
+import io.fabric8.elasticsearch.plugin.OpenshiftAPIService.Project;
 import io.fabric8.elasticsearch.plugin.OpenshiftRequestContextFactory.OpenshiftRequestContext;
 
 public class ProjectRolesMappingSyncStrategy extends BaseRolesMappingSyncStrategy {
@@ -30,8 +31,8 @@ public class ProjectRolesMappingSyncStrategy extends BaseRolesMappingSyncStrateg
     protected  void syncFromImpl(OpenshiftRequestContext context, RolesMappingBuilder builder) {
         
         final String username = context.getUser();
-        for (String project : context.getProjects()) {
-            String projectRoleName = String.format("%s_%s", PROJECT_PREFIX, project.replace('.', '_'));
+        for (Project project : context.getProjects()) {
+            String projectRoleName = String.format("%s_%s", PROJECT_PREFIX, project.getName().replace('.', '_'));
 
             builder.addUser(projectRoleName, username);
         }

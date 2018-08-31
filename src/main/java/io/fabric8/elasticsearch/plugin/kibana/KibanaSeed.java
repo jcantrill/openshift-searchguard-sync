@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.Logger;
@@ -35,6 +36,7 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.search.SearchHit;
 
 import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
+import io.fabric8.elasticsearch.plugin.OpenshiftAPIService.Project;
 import io.fabric8.elasticsearch.plugin.OpenshiftRequestContextFactory.OpenshiftRequestContext;
 import io.fabric8.elasticsearch.plugin.PluginClient;
 import io.fabric8.elasticsearch.plugin.PluginSettings;
@@ -122,7 +124,7 @@ public class KibanaSeed implements ConfigurationSettings {
         Set<String> indexPatterns = getProjectNamesFromIndexes(context, client, projectPrefix);
         LOGGER.debug("Found '{}' Index patterns for user", indexPatterns.size());
 
-        Set<String> projects = new HashSet<>(context.getProjects());
+        Set<String> projects = context.getProjects().stream().map(Project::getName).collect(Collectors.toSet());
         List<String> filteredProjects = new ArrayList<String>(filterProjectsWithIndices(projectPrefix, projects));
         LOGGER.debug("projects for '{}' that have existing indexes: '{}'", context.getUser(), filteredProjects);
         

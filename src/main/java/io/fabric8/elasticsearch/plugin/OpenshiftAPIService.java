@@ -18,6 +18,8 @@ package io.fabric8.elasticsearch.plugin;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.logging.log4j.Logger;
@@ -68,7 +70,63 @@ public class OpenshiftAPIService {
         }        
     }
     
-    public Set<String> projectNames(final String token){
+    public static class Project {
+        private final String name;
+        private final String uid;
+        
+        public Project(String name, String uid) {
+            this.name = name;
+            this.uid = uid;
+        }
+        
+        public String getUID(){
+            return uid;
+        }
+        
+        public String getName() {
+            return name;
+        }
+        
+        @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + ((name == null) ? 0 : name.hashCode());
+            result = prime * result + ((uid == null) ? 0 : uid.hashCode());
+            return result;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            Project other = (Project) obj;
+            if (name == null) {
+                if (other.name != null) {
+                    return false;
+                }
+            } else if (!name.equals(other.name)) {
+                return false;
+            }
+            if (uid == null) {
+                if (other.uid != null) {
+                    return false;
+                }
+            } else if (!uid.equals(other.uid)) {
+                return false;
+            }
+            return true;
+        }
+    }
+    
+    public Set<Project> projectNames(final String token){
         try (DefaultOpenShiftClient client = buildClient(token)) {
             Request request = new Request.Builder()
                 .url(client.getMasterUrl() + "apis/project.openshift.io/v1/projects")
@@ -78,7 +136,12 @@ public class OpenshiftAPIService {
             if(response.code() != RestStatus.OK.getStatus()) {
                 throw new ElasticsearchSecurityException("Unable to retrieve users's project list", RestStatus.fromCode(response.code()));
             }
-            return new HashSet<String>(JsonPath.read(response.body().byteStream(),"$.items[*].metadata.name"));
+            Set<Project> projects = new HashSet<>();
+            List<Map<String, String>> raw = JsonPath.read(response.body().byteStream(), "$.items[*].metadata");
+            for (Map<String, String> map : raw) {
+                projects.add(new Project(map.get("name"), map.get("uid")));
+            }
+            return projects;
         } catch (KubernetesClientException e) {
             LOGGER.error("Error retrieving project list", e);
             throw new ElasticsearchSecurityException(e.getMessage());
