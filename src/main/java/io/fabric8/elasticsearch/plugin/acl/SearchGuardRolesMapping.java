@@ -72,6 +72,9 @@ public class SearchGuardRolesMapping implements Iterable<SearchGuardRolesMapping
         }
 
         public void setUsers(Collection<String> users) {
+            if(users == null ) {
+                users = new HashSet<>();
+            }
             this.users = new HashSet<>(users);
         }
 
