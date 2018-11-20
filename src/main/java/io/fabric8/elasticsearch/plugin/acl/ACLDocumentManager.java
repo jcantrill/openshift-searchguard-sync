@@ -35,6 +35,7 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.update.UpdateRequestBuilder;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.logging.Loggers;
@@ -91,7 +92,7 @@ public class ACLDocumentManager implements ConfigurationSettings {
     
     private void logContent(final String message, final String type, final ToXContent content) throws IOException{
         if(LOGGER.isDebugEnabled()) {
-            LOGGER.debug(message, type, XContentHelper.toString(content));
+            LOGGER.debug(message, type, Strings.toString(content));
         }
     }
     
@@ -130,7 +131,7 @@ public class ACLDocumentManager implements ConfigurationSettings {
             for (SearchGuardACLDocument doc : docs) {
                 logContent("Updating {} to: {}", doc.getType(), doc);
                 Map<String, Object> content = new HashMap<>();
-                content.put(doc.getType(), new BytesArray(XContentHelper.toString(doc)));
+                content.put(doc.getType(), new BytesArray(Strings.toString(doc)));
                 UpdateRequestBuilder update = client
                         .prepareUpdate(searchGuardIndex, doc.getType(), SEARCHGUARD_CONFIG_ID)
                         .setDoc(content);
@@ -185,7 +186,7 @@ public class ACLDocumentManager implements ConfigurationSettings {
             for (SearchGuardACLDocument doc : docs) {
                 logContent("Expired doc {} to be: {}", doc.getType(), doc);
                 Map<String, Object> content = new HashMap<>();
-                content.put(doc.getType(), new BytesArray(XContentHelper.toString(doc)));
+                content.put(doc.getType(), new BytesArray(Strings.toString(doc)));
                 IndexRequestBuilder indexBuilder = client
                         .prepareIndex(searchGuardIndex, doc.getType(), SEARCHGUARD_CONFIG_ID)
                         .setOpType(OpType.INDEX)
@@ -253,16 +254,15 @@ public class ACLDocumentManager implements ConfigurationSettings {
         for (Entry<String, Tuple<Settings, Long>> item : loadedDocs.entrySet()) {
             Settings settings = item.getValue().v1();
             Long version = item.getValue().v2();
-            Map<String, Object> original = settings.getAsStructuredMap();
             if(LOGGER.isDebugEnabled()){
                 logContent("Read in {}: {}", item.getKey(), settings);
             }
             switch (item.getKey()) {
             case SEARCHGUARD_ROLE_TYPE:
-                docs.add(new SearchGuardRoles(version).load(original));
+                docs.add(new SearchGuardRoles(version).load(settings));
                 break;
             case SEARCHGUARD_MAPPING_TYPE:
-                docs.add(new SearchGuardRolesMapping(version).load(original));
+                docs.add(new SearchGuardRolesMapping(version).load(settings));
                 break;
             }
         }

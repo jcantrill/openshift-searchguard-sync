@@ -16,8 +16,7 @@
 
 package io.fabric8.elasticsearch.plugin.acl;
 
-import java.util.Map;
-
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 
 public interface SearchGuardACLDocument<T> extends ToXContentObject {
@@ -26,7 +25,7 @@ public interface SearchGuardACLDocument<T> extends ToXContentObject {
 
     String getType();
 
-    T load(Map<String, Object> sourceAsMap);
+    T load(Settings sourceAsMap);
     
     Long getVersion();
 }

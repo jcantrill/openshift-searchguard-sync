@@ -26,6 +26,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -144,7 +145,7 @@ public class OpenshiftAPIService {
                     .url(String.format("%sapis/authorization.openshift.io/v1/subjectaccessreviews", client.getMasterUrl(), project))
                     .header(CONTENT_TYPE, APPLICATION_JSON)
                     .header(ACCEPT, APPLICATION_JSON)
-                    .post(RequestBody.create(MediaType.parse(APPLICATION_JSON), payload.string()))
+                    .post(RequestBody.create(MediaType.parse(APPLICATION_JSON), Strings.toString(payload)))
                     .build();
             log(request);
             Response response = client.getHttpClient().newCall(request).execute();

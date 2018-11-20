@@ -232,7 +232,7 @@ public class SearchGuardRoles
     }
 
     @SuppressWarnings("unchecked")
-    public SearchGuardRoles load(Map<String, Object> source) {
+    public SearchGuardRoles load(Settings source) {
         if(source == null) {
             return this;
         }

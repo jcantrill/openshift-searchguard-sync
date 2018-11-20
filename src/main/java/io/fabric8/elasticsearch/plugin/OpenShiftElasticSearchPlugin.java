@@ -17,6 +17,7 @@
 package io.fabric8.elasticsearch.plugin;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -43,8 +44,11 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.env.Environment;
+import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.http.HttpServerTransport.Dispatcher;
 import org.elasticsearch.index.IndexModule;
@@ -77,15 +81,17 @@ public class OpenShiftElasticSearchPlugin extends Plugin implements Configuratio
     private DynamicACLFilter aclFilter;
     private SearchGuardPlugin sgPlugin;
 
-    public OpenShiftElasticSearchPlugin(final Settings settings) {
+    public OpenShiftElasticSearchPlugin(final Settings settings, final Path configPath) {
         this.settings = settings;
-        this.sgPlugin = new SearchGuardPlugin(settings);
+        this.sgPlugin = new SearchGuardPlugin(settings, configPath);
     }
 
+    
+    @Override
     public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
-            ResourceWatcherService resourceWatcherService, ScriptService scriptService,
-            NamedXContentRegistry namedXContentRegistry) {
-
+            ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
+            Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry) {
+        
         final PluginSettings pluginSettings = new PluginSettings(settings);
         final IndexMappingLoader indexMappingLoader = new IndexMappingLoader(settings);
         final PluginClient pluginClient = new PluginClient(client, threadPool.getThreadContext());
@@ -120,8 +126,13 @@ public class OpenShiftElasticSearchPlugin extends Plugin implements Configuratio
         list.add(aclFilter);
         list.add(osElasticService);
         list.add(new FieldStatsResponseFilter(pluginClient));
-        list.addAll(sgPlugin.createComponents(client, clusterService, threadPool, resourceWatcherService, scriptService,
-                namedXContentRegistry));
+        list.addAll(sgPlugin.createComponents(
+                client, 
+                clusterService, 
+                threadPool, 
+                resourceWatcherService, 
+                scriptService,
+                xContentRegistry, environment, nodeEnvironment, namedWriteableRegistry));
         return list;
     }
 
@@ -152,26 +163,28 @@ public class OpenShiftElasticSearchPlugin extends Plugin implements Configuratio
         sgPlugin.onIndexModule(indexModule);
     }
 
+    
     @Override
-    public List<Class<? extends ActionFilter>> getActionFilters() {
-        List<Class<? extends ActionFilter>> list = new ArrayList<>();
+    public List<ActionFilter> getActionFilters() {
+        List<ActionFilter> list = new ArrayList<>();
         list.add(FieldStatsResponseFilter.class);
         list.addAll(sgPlugin.getActionFilters());
         return list;
     }
 
     @Override
-    public List<TransportInterceptor> getTransportInterceptors(ThreadContext threadContext) {
+    public List<TransportInterceptor> getTransportInterceptors(NamedWriteableRegistry namedWriteableRegistry, ThreadContext threadContext) {
         List<TransportInterceptor> list = new ArrayList<>();
-        list.addAll(sgPlugin.getTransportInterceptors(threadContext));
+        list.addAll(sgPlugin.getTransportInterceptors(namedWriteableRegistry, threadContext));
         return list;
     }
 
     @Override
     public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays,
-            CircuitBreakerService circuitBreakerService, NamedWriteableRegistry namedWriteableRegistry,
-            NetworkService networkService) {
-        Map<String, Supplier<Transport>> transports = sgPlugin.getTransports(settings, threadPool, bigArrays, circuitBreakerService, namedWriteableRegistry,
+            PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService,
+            NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService) {
+        Map<String, Supplier<Transport>> transports = sgPlugin.getTransports(settings, threadPool, bigArrays, 
+                pageCacheRecycler, circuitBreakerService, namedWriteableRegistry,
                 networkService);
         return transports;
     }
