@@ -57,6 +57,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.loader.JsonSettingsLoader;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -79,7 +80,7 @@ public class ConfigurationLoader {
         super();
         this.client = client;
         this.threadContext = threadPool.getThreadContext();
-        this.searchguardIndex = settings.get(ConfigConstants.SG_CONFIG_INDEX, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
+        this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         log.debug("Index is: {}", searchguardIndex);
     }
     
@@ -187,10 +188,7 @@ public class ConfigurationLoader {
             return null;
         }
         
-        XContentParser parser = null;
-
-        try {
-            parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, ref, XContentType.JSON);
+        try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, ref, XContentType.JSON)){
             parser.nextToken();
             parser.nextToken();
          
@@ -200,13 +198,9 @@ public class ConfigurationLoader {
             
             parser.nextToken();
             
-            return Settings.builder().put(new JsonSettingsLoader(true).load(parser.binaryValue())).build();
+            return Settings.builder().put(parser.map()).build();
         } catch (final IOException e) {
             throw ExceptionsHelper.convertToElastic(e);
-        } finally {
-            if(parser != null) {
-                parser.close();
-            }
         }
     }
 }
