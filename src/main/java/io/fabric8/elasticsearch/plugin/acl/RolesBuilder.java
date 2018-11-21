@@ -21,18 +21,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Roles;
-import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Roles.Indices;
+import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Role;
+import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Role.Indices;
 
 public class RolesBuilder {
 
-    private Map<String, Roles> roles = new HashMap<>();
+    private Map<String, Role> roles = new HashMap<>();
 
-    public Collection<Roles> build() {
+    public Collection<Role> build() {
         return roles.values();
     }
 
-    public RolesBuilder addRole(Roles role) {
+    public RolesBuilder addRole(Role role) {
         roles.put(role.getName(), role);
         return this;
     }
@@ -42,7 +42,7 @@ public class RolesBuilder {
     }
     
     public static class RoleBuilder {
-        private Roles role = new Roles();
+        private Role role = new Role();
         
         RoleBuilder(String name){
             role.setName(name);
@@ -83,7 +83,7 @@ public class RolesBuilder {
             return this;
         }
         
-        public Roles build() {
+        public Role build() {
             return role;
         }
         

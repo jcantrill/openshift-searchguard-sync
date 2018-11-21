@@ -17,24 +17,21 @@
 package io.fabric8.elasticsearch.plugin.acl;
 
 import static io.fabric8.elasticsearch.plugin.TestUtils.assertYaml;
-import static io.fabric8.elasticsearch.plugin.TestUtils.buildMap;
 import static org.junit.Assert.assertEquals;
 
-import java.io.StringReader;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Test;
 
 import io.fabric8.elasticsearch.plugin.KibanaIndexMode;
 import io.fabric8.elasticsearch.plugin.OpenshiftRequestContextFactory.OpenshiftRequestContext;
 import io.fabric8.elasticsearch.plugin.Samples;
-import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Roles;
+import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Role;
 import io.fabric8.elasticsearch.plugin.model.Project;
 
 public class SearchGuardRoleACLTest {
@@ -124,24 +121,23 @@ public class SearchGuardRoleACLTest {
     
     @Test
     public void testSerialization() throws Exception {
-        Roles role = new RolesBuilder().newRoleBuilder("foo")
+        Role role = new RolesBuilder().newRoleBuilder("foo")
             .addClusterAction("myClusterAction")
             .addIndexAction("*", "*", "*")
             .expires("12345")
             .build();
         SearchGuardRoles sgRoles = new SearchGuardRoles(8901L);
         sgRoles.addAll(Arrays.asList(role));
-        final String out = XContentHelper.toString(sgRoles);
-        Map<String, Object> in = XContentHelper.convertToMap(new BytesArray(out), true, XContentType.JSON).v2();
-        SearchGuardRoles inRoles = new SearchGuardRoles().load(in);
-        assertEquals("Exp serialization to equal derialization", out,  XContentHelper.toString(inRoles));
+        final String out = Strings.toString(sgRoles, true, true);
+        SearchGuardRoles in = new SearchGuardRoles().load(Settings.builder().loadFromSource(out, XContentType.JSON).build());
+        assertEquals("Exp serialization to equal derialization", out,  Strings.toString(in, true, true));
     }
 
     @Test
     public void testRemove() throws Exception {
         SearchGuardRoles roles = new SearchGuardRoles()
-                .load(buildMap(new StringReader(Samples.ROLES_ACL.getContent())));
-        for (Roles role : roles) {
+                .load(Settings.builder().loadFromSource(Samples.ROLES_ACL.getContent(), XContentType.YAML).build());
+        for (Role role : roles) {
             roles.removeRole(role);
         }
     }

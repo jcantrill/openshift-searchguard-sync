@@ -35,6 +35,7 @@ import java.util.Map;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -69,7 +70,7 @@ public class OpenShiftTokenAuthenticationTest {
     
     @Before
     public void setUp() throws Exception {
-        String content = XContentFactory.jsonBuilder()
+        String content = Strings.toString(XContentFactory.jsonBuilder()
                 .startObject()
                     .startObject("subjectAccessReviews")
                         .startObject("prometheus")
@@ -79,8 +80,7 @@ public class OpenShiftTokenAuthenticationTest {
                             .field("resource", "theResource")
                         .endObject()
                     .endObject()
-                .endObject()
-            .string();
+                .endObject());
         backend = new OpenShiftTokenAuthentication(Settings.builder().loadFromSource(content, XContentType.JSON).build());
         Map<String, List<String>> headers = new HashMap<String, List<String>>();
         headers.put("Authorization", Arrays.asList("Bearer theAuthToken"));

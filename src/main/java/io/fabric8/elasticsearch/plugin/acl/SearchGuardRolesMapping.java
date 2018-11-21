@@ -20,15 +20,16 @@ import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
@@ -141,18 +142,18 @@ public class SearchGuardRolesMapping implements Iterable<SearchGuardRolesMapping
     }
 
     @SuppressWarnings("unchecked")
-    public SearchGuardRolesMapping load(Map<String, Object> source) {
+    public SearchGuardRolesMapping load(Settings source) {
         if(source == null) {
             return this;
         }
-        for (String key : source.keySet()) {
-            Map<String, Object> rawMappings = (Map<String, Object>) source.get(key);
+        for (String key : source.names()) {
+            Settings rawMappings = source.getAsSettings(key);
 
             RolesMapping mapping = new RolesMapping();
             mapping.setName(key);
-            mapping.setUsers((List<String>)(rawMappings.get(USER_HEADER)));
-            mapping.setBackendRoles((List<String>)(rawMappings.get(BACKEND_ROLES)));
-            if(rawMappings.containsKey(EXPIRES)) {
+            mapping.setUsers(rawMappings.getAsList(USER_HEADER, Collections.EMPTY_LIST));
+            mapping.setBackendRoles(rawMappings.getAsList(BACKEND_ROLES, Collections.EMPTY_LIST));
+            if(rawMappings.hasValue(EXPIRES)) {
                 mapping.setExpire((String)rawMappings.get(EXPIRES));
             }
             mappings.put(mapping.getName(), mapping);
@@ -168,6 +169,7 @@ public class SearchGuardRolesMapping implements Iterable<SearchGuardRolesMapping
     
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException{
         try {
+            builder.startObject();
             // output keys are names of mapping
             for (RolesMapping mapping : mappings.values()) {
                 builder.startObject(mapping.getName());
@@ -180,6 +182,7 @@ public class SearchGuardRolesMapping implements Iterable<SearchGuardRolesMapping
                 }
                 builder.endObject();
             }
+            builder.endObject();
             return builder;
         } catch (IOException e) {
             throw new RuntimeException("Unable to convert the SearchGuardRolesMapping to JSON", e);

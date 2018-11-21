@@ -43,7 +43,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -55,7 +54,7 @@ import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
 import io.fabric8.elasticsearch.plugin.OpenshiftRequestContextFactory.OpenshiftRequestContext;
 import io.fabric8.elasticsearch.plugin.PluginClient;
 import io.fabric8.elasticsearch.plugin.PluginSettings;
-import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Roles;
+import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Role;
 import io.fabric8.elasticsearch.plugin.acl.SearchGuardRolesMapping.RolesMapping;
 
 /**
@@ -169,7 +168,7 @@ public class ACLDocumentManager implements ConfigurationSettings {
                     }
                 } else if(ConfigurationSettings.SEARCHGUARD_ROLE_TYPE.equals(doc.getType())) {
                     SearchGuardRoles roles = (SearchGuardRoles) doc;
-                    for (Roles role : roles) {
+                    for (Role role : roles) {
                         //assume if the value is there its intentional
                         String expire = role.getExpire();
                         if(expire != null && Long.parseLong(expire) < now) {

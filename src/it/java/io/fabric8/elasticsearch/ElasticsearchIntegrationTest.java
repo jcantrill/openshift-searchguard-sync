@@ -16,14 +16,11 @@
 
 package io.fabric8.elasticsearch;
 
-import static org.junit.Assert.assertEquals;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
@@ -32,13 +29,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.KeyStore;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -47,7 +42,6 @@ import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 import javax.xml.bind.DatatypeConverter;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchTimeoutException;
@@ -70,7 +64,8 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.common.transport.BoundTransportAddress;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -80,7 +75,10 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.node.Node;
-import org.elasticsearch.node.PluginAwareNode;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
+import org.elasticsearch.test.ESIntegTestCase.Scope;
+import org.elasticsearch.test.ESIntegTestCase;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -94,6 +92,7 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.SearchGuardDeprecationHandler;
 
 import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
 import io.fabric8.elasticsearch.plugin.OpenShiftElasticSearchPlugin;
@@ -111,7 +110,8 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-public abstract class ElasticsearchIntegrationTest {
+@ClusterScope(scope=Scope.TEST, numDataNodes=1, minNumDataNodes=1)
+public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
 
     protected static final Logger log = Loggers.getLogger(ElasticsearchIntegrationTest.class);
     private static final String CLUSTER_NAME = "openshift_elastic_test_cluster";
@@ -128,12 +128,12 @@ public abstract class ElasticsearchIntegrationTest {
     @Rule
     public OpenShiftServer apiServer = new OpenShiftServer();
 
-    protected Node esNode1;
-    protected Set<InetSocketTransportAddress> httpAdresses = new HashSet<InetSocketTransportAddress>();
-    protected String nodeHost;
-    protected int nodePort;
-    private String httpHost = null;
-    private int httpPort = -1;
+//    protected Node esNode1;
+//    protected Set<TransportAddress> httpAdresses = new HashSet<TransportAddress>();
+//    protected String nodeHost;
+//    protected int nodePort;
+//    private String httpHost = null;
+//    private int httpPort = -1;
     protected Map<String, Object> testContext;
 
     @BeforeClass
@@ -198,16 +198,16 @@ public abstract class ElasticsearchIntegrationTest {
     }
     
     protected void seedSearchGuardAcls() throws Exception {
-        ThreadContext threadContext = esNode1.client().threadPool().getThreadContext();
+        Client client = internalCluster().masterClient();
+        ThreadContext threadContext = client.threadPool().getThreadContext();
         try (StoredContext cxt = threadContext.stashContext()) {
             log.info("Starting seeding of SearchGuard ACLs...");
             threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            Client client = esNode1.client();
             String configdir = basedir + "/src/test/resources/sgconfig";
             for (String config : new String [] {"actiongroups", "config", "internalusers", "rolesmapping", "roles"}) {
                 uploadFile(client, String.format("%s/%s.yml", configdir,config), ".searchguard", config);
             }
-            ((NodeClient)client()).execute(ConfigUpdateAction.INSTANCE, 
+            client.execute(ConfigUpdateAction.INSTANCE, 
                     new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
             log.info("Completed seeding SearchGuard ACL");
         }
@@ -221,23 +221,29 @@ public abstract class ElasticsearchIntegrationTest {
         return Settings.EMPTY;
     }
 
-    protected Settings nodeSettings() throws Exception {
-        String tmp = Files.createTempDirectory(null).toAbsolutePath().toString();
-        log.info("Using base directory: {}", tmp);
+    @Override
+    protected Settings nodeSettings(int nodeOrdinal) {
+        String tmp;
+        try {
+            tmp = Files.createTempDirectory(null).toAbsolutePath().toString();
+            log.info("Using base directory: {}", tmp);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         Settings settings = Settings.builder()
-                .put("path.home", tmp)
-                .put("path.conf", basedir + "/src/test/resources")
-                .put("http.port", 9200)
-                .put("transport.tcp.port", 9300)
+//                .put("path.home", tmp)
+//                .put("path.conf", basedir + "/src/test/resources")
+//                .put("http.port", 9200)
+//                .put("transport.tcp.port", 9300)
                 .put("cluster.name", CLUSTER_NAME)
-                .put("discovery.zen.minimum_master_nodes", 1)
-                .put("node.data", true)
-                .put("node.master", true)
-                .put("gateway.expected_nodes", 1)
-                .put("discovery.zen.minimum_master_nodes", 1)
-                .putArray("searchguard.authcz.admin_dn", "CN=*")
-                .putArray("searchguard.nodes_dn", "CN=*")
-                .put(ConfigConstants.SG_CONFIG_INDEX, ".searchguard")
+//                .put("discovery.zen.minimum_master_nodes", 1)
+//                .put("node.data", true)
+//                .put("node.master", true)
+//                .put("gateway.expected_nodes", 1)
+//                .put("discovery.zen.minimum_master_nodes", 1)
+                .putList("searchguard.authcz.admin_dn", "CN=*")
+                .putList("searchguard.nodes_dn", "CN=*")
+                .put(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ".searchguard")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED, true)
                 .put(ConfigurationSettings.SG_CLIENT_KS_PATH, keyStore)
                 .put(ConfigurationSettings.SG_CLIENT_TS_PATH, trustStore)
@@ -268,29 +274,46 @@ public abstract class ElasticsearchIntegrationTest {
                 .build();
         return settings;
     }
-
+    
+    @Override
+    protected Collection<Class<? extends Plugin>> nodePlugins() {
+        return Arrays.asList(OpenShiftElasticSearchPlugin.class);
+    }
+    
     protected final String getHttpServerUri() {
-        final String address = "https://" + httpHost + ":" + httpPort;
+        final String address = "https://localhost:9200";
         log.debug("Connect to {}", address);
         return address;
     }
-
-    @After
-    public void tearDown() throws Exception {
-        Thread.sleep(500);
-        if (esNode1 != null) {
-            log.info("--------- Stopping ES Node ----------");
-            esNode1.close();
-        }
+    
+    @Override
+    protected int numberOfShards() {
+        return 1;
     }
+
+    @Override
+    protected int numberOfReplicas() {
+        return 1;
+    }
+    
+    
+
+//    @After
+//    public void tearDown() throws Exception {
+//        Thread.sleep(500);
+//        if (esNode1 != null) {
+//            log.info("--------- Stopping ES Node ----------");
+//            esNode1.close();
+//        }
+//    }
     
     @Before
-    public void startES() throws Exception {
+    public void setup() throws Exception {
         testContext = new HashMap<>();
-        startES(nodeSettings(), 30, 1);
-    }
-    
-    public final void startES(final Settings settings, int timeOutSec, int assertNodes) throws Exception {
+//        startES(nodeSettings(), 30, 1);
+//    }
+//    
+//    public final void startES(final Settings settings, int timeOutSec, int assertNodes) throws Exception {
         // setup api server
         final String masterUrl = apiServer.getMockServer().url("/").toString();
         System.setProperty(Config.KUBERNETES_MASTER_SYSTEM_PROPERTY, masterUrl);
@@ -301,16 +324,16 @@ public abstract class ElasticsearchIntegrationTest {
         System.setProperty("kubernetes.truststore.passphrase", password);
         System.setProperty("sg.display_lic_none", "true");
 
-        FileUtils.deleteDirectory(new File("data"));
+//        FileUtils.deleteDirectory(new File("data"));
 
-        esNode1 = new PluginAwareNode(
-                settings,
-                OpenShiftElasticSearchPlugin.class);
+//        esNode1 = new Node(settings);
+//        esNode1.getNodeEnvironment().
         log.debug("--------- Starting ES Node ----------");
-        esNode1.start();
+//        esNode1.start();
         log.debug("--------- Waiting for the cluster to go green ----------");
-        waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(timeOutSec), esNode1.client(),
-                assertNodes);
+        ensureGreen();
+//        waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(timeOutSec), esNode1.client(),
+//                assertNodes);
 
         seedSearchGuardAcls();
         // seed kibana index like kibana
@@ -331,7 +354,8 @@ public abstract class ElasticsearchIntegrationTest {
 
     protected void givenDocumentIsIndexed(String index, String type, String id, XContentBuilder content)
             throws Exception {
-        ThreadContext threadContext = esNode1.client().threadPool().getThreadContext();
+        Client client = internalCluster().masterClient();
+        ThreadContext threadContext = client.threadPool().getThreadContext();
         try (StoredContext cxt = threadContext.stashContext()) {
             threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
             IndexResponse response = esNode1.client().prepareIndex(index, type, id)
@@ -355,10 +379,11 @@ public abstract class ElasticsearchIntegrationTest {
     }
     
     protected void dumpIndices() throws Exception {
-        ThreadContext threadContext = esNode1.client().threadPool().getThreadContext();
+        Client client = internalCluster().masterClient();
+        ThreadContext threadContext = client.threadPool().getThreadContext();
         try (StoredContext cxt = threadContext.stashContext()) {
             threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            ClusterStateResponse response = esNode1.client().admin().cluster().prepareState().get();
+            ClusterStateResponse response = admin().cluster().prepareState().get();
             Iterator<ObjectObjectCursor<String, IndexMetaData>> iterator = response.getState().getMetaData().indices().iterator();
             while (iterator.hasNext()) {
                 ObjectObjectCursor<String, IndexMetaData> c = (ObjectObjectCursor<String, IndexMetaData>) iterator.next();
@@ -374,10 +399,11 @@ public abstract class ElasticsearchIntegrationTest {
     }
 
     protected void dumpDocument(String index, String type, String id) throws Exception {
-        ThreadContext threadContext = client().threadPool().getThreadContext();
+        Client client = internalCluster().masterClient();
+        ThreadContext threadContext = client.threadPool().getThreadContext();
         try (StoredContext cxt = threadContext.stashContext()) {
             threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            GetResponse response = client().prepareGet(index, type, id).get();
+            GetResponse response = client.prepareGet(index, type, id).get();
             System.out.println(response.getSourceAsString());
         }
     }
@@ -530,55 +556,54 @@ public abstract class ElasticsearchIntegrationTest {
         assertEquals(String.format("Exp. %s to be unauthorized for %s", username, uri), 401, response.code());
     }
     
-    protected Client client() {
-        return esNode1.client();
-    }
-
-    protected void waitForGreenClusterState(final Client client) throws IOException {
-        waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(30), client, 3);
-    }
-
-    protected void waitForCluster(final ClusterHealthStatus status, final TimeValue timeout, final Client client,
-            int assertNodes) throws IOException {
-        try {
-            log.debug("waiting for cluster state {}", status.name());
-            final ClusterHealthResponse healthResponse = client.admin().cluster().prepareHealth()
-                    .setWaitForStatus(status).setTimeout(timeout).setWaitForNodes(String.valueOf(assertNodes)).execute()
-                    .actionGet();
-            if (healthResponse.isTimedOut()) {
-                throw new IOException("cluster state is " + healthResponse.getStatus().name() + " with "
-                        + healthResponse.getNumberOfNodes() + " nodes");
-            } else {
-                log.debug("... cluster state ok " + healthResponse.getStatus().name() + " with "
-                        + healthResponse.getNumberOfNodes() + " nodes");
-            }
-
-            org.junit.Assert.assertEquals(assertNodes, healthResponse.getNumberOfNodes());
-
-            final NodesInfoResponse res = esNode1.client().admin().cluster().nodesInfo(new NodesInfoRequest())
-                    .actionGet();
-
-            final List<NodeInfo> nodes = res.getNodes();
-
-            for (NodeInfo nodeInfo : nodes) {
-                if (nodeInfo.getHttp() != null && nodeInfo.getHttp().address() != null) {
-                    final InetSocketTransportAddress is = (InetSocketTransportAddress) nodeInfo.getHttp().address()
-                            .publishAddress();
-                    httpPort = is.getPort();
-                    httpHost = is.getHost();
-                    httpAdresses.add(is);
-                }
-
-                final InetSocketTransportAddress is = (InetSocketTransportAddress) nodeInfo.getTransport().getAddress()
-                        .publishAddress();
-                nodePort = is.getPort();
-                nodeHost = is.getHost();
-            }
-        } catch (final ElasticsearchTimeoutException e) {
-            throw new IOException(
-                    "timeout, cluster does not respond to health request, cowardly refusing to continue with operations");
-        }
-    }
+//    protected Client client() {
+//        return esNode1.client();
+//    }
+//
+//    protected void waitForGreenClusterState(final Client client) throws IOException {
+//        waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(30), client, 3);
+//    }
+//
+//    protected void waitForCluster(final ClusterHealthStatus status, final TimeValue timeout, final Client client,
+//            int assertNodes) throws IOException {
+//        try {
+//            log.debug("waiting for cluster state {}", status.name());
+//            final ClusterHealthResponse healthResponse = client.admin().cluster().prepareHealth()
+//                    .setWaitForStatus(status).setTimeout(timeout).setWaitForNodes(String.valueOf(assertNodes)).execute()
+//                    .actionGet();
+//            if (healthResponse.isTimedOut()) {
+//                throw new IOException("cluster state is " + healthResponse.getStatus().name() + " with "
+//                        + healthResponse.getNumberOfNodes() + " nodes");
+//            } else {
+//                log.debug("... cluster state ok " + healthResponse.getStatus().name() + " with "
+//                        + healthResponse.getNumberOfNodes() + " nodes");
+//            }
+//
+//            org.junit.Assert.assertEquals(assertNodes, healthResponse.getNumberOfNodes());
+//
+//            final NodesInfoResponse res = esNode1.client().admin().cluster().nodesInfo(new NodesInfoRequest())
+//                    .actionGet();
+//
+//            final List<NodeInfo> nodes = res.getNodes();
+//
+//            for (NodeInfo nodeInfo : nodes) {
+//                if (nodeInfo.getHttp() != null && nodeInfo.getHttp().address() != null) {
+//                    final TransportAddress is = nodeInfo.getHttp().address().publishAddress();
+//                    httpPort = is.getPort();
+//                    httpHost = is.address().getHostName();
+//                    httpAdresses.add(is);
+//                }
+//
+//                final TransportAddress is = nodeInfo.getTransport().getAddress()
+//                        .publishAddress();
+//                nodePort = is.getPort();
+//                httpHost = is.address().getHostName();
+//            }
+//        } catch (final ElasticsearchTimeoutException e) {
+//            throw new IOException(
+//                    "timeout, cluster does not respond to health request, cowardly refusing to continue with operations");
+//        }
+//    }
 
     public File getAbsoluteFilePathFromClassPath(final String fileNameFromClasspath) {
         File file = null;
@@ -683,22 +708,14 @@ public abstract class ElasticsearchIntegrationTest {
         return sw.toString();
     }
 
-    protected BytesReference readYmlContent(final String file) {
-        try {
-            return readXContent(new StringReader(loadFile(file)), XContentType.YAML);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    protected static BytesReference readXContent(final Reader reader, final XContentType contentType) throws IOException {
+    protected static XContentBuilder readXContent(final Reader reader, final XContentType contentType) throws IOException {
         XContentParser parser = null;
         try {
-            parser = XContentFactory.xContent(contentType).createParser(NamedXContentRegistry.EMPTY, reader);
+            parser = XContentFactory.xContent(contentType).createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, reader);
             parser.nextToken();
             final XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.copyCurrentStructure(parser);
-            return builder.bytes();
+            return builder;
         } finally {
             if (parser != null) {
                 parser.close();

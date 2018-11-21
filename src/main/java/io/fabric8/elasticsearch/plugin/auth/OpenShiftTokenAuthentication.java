@@ -110,7 +110,7 @@ public class OpenShiftTokenAuthentication implements AuthenticationBackend, HTTP
             if(context == null || context == OpenshiftRequestContext.EMPTY) {
                 return null;
             }
-            User user = new User(context.getUser(), retrieveBackendRoles(context));
+            User user = new User(context.getUser(), retrieveBackendRoles(context), credentials);
             addGeneralRoles(user, credentials, context);
             return user;
         }
@@ -139,7 +139,7 @@ public class OpenShiftTokenAuthentication implements AuthenticationBackend, HTTP
                                     params.get("resourceAPIGroup"),
                                     ArrayUtils.EMPTY_STRING_ARRAY);
                         } catch (Exception e) {
-                            LOGGER.error("Exception executing LSAR", e);
+                            LOGGER.error("Exception executing LocalSubjectAccesseview", e);
                         }
                         return false;
                     }

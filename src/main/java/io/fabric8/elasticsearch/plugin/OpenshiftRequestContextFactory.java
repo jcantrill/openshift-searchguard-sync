@@ -23,6 +23,7 @@ import static io.fabric8.elasticsearch.plugin.KibanaIndexMode.UNIQUE;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -50,7 +51,7 @@ public class OpenshiftRequestContextFactory {
 
     private final OpenshiftAPIService apiService;
     private final RequestUtils utils;
-    private final String[] operationsProjects;
+    private final List<String> operationsProjects;
     private final String kibanaPrefix;
     private String kibanaIndexMode;
 
@@ -60,8 +61,8 @@ public class OpenshiftRequestContextFactory {
             final OpenshiftAPIService apiService) {
         this.apiService = apiService;
         this.utils = utils;
-        this.operationsProjects = settings.getAsArray(ConfigurationSettings.OPENSHIFT_CONFIG_OPS_PROJECTS,
-                ConfigurationSettings.DEFAULT_OPENSHIFT_OPS_PROJECTS);
+        this.operationsProjects = settings.getAsList(ConfigurationSettings.OPENSHIFT_CONFIG_OPS_PROJECTS,
+                Arrays.asList(ConfigurationSettings.DEFAULT_OPENSHIFT_OPS_PROJECTS));
         this.kibanaPrefix = settings.get(ConfigurationSettings.KIBANA_CONFIG_INDEX_NAME,
                 ConfigurationSettings.DEFAULT_USER_PROFILE_PREFIX);
         this.kibanaIndexMode = settings.get(ConfigurationSettings.OPENSHIFT_KIBANA_INDEX_MODE, UNIQUE);
@@ -145,7 +146,7 @@ public class OpenshiftRequestContextFactory {
     }
 
     private boolean isBlacklistProject(String project) {
-        return ArrayUtils.contains(operationsProjects, project.toLowerCase());
+        return operationsProjects.contains(project.toLowerCase());
     }
 
     private String getKibanaIndex(String username, boolean isOpsUser) {

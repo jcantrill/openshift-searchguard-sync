@@ -18,32 +18,28 @@ package io.fabric8.elasticsearch.plugin;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.StringReader;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.yaml.snakeyaml.Yaml;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.common.xcontent.yaml.YamlXContent;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 
 public class TestUtils {
 
-
-    @SuppressWarnings("unchecked")
-    public static Map<String, Object> buildMap(StringReader reader) {
-        return (Map<String, Object>) new Yaml().load(reader);
-    }
-    
     public static void assertYaml(String message, String exp, ToXContent content) throws Exception {
-        XContentBuilder builder = XContentFactory.yamlBuilder();
-        builder.startObject();
-        content.toXContent(builder, ToXContent.EMPTY_PARAMS);
-        builder.endObject();
-        Map<String, Object> act = XContentHelper.convertToMap(builder.bytes(), true, XContentType.YAML).v2();
-        assertEquals(message, exp, new Yaml().dump(new TreeMap<>(act)));
+        Map<String, Object> expMap = new TreeMap<>(XContentHelper.convertToMap(YamlXContent.yamlXContent, exp, true));
+
+        ObjectWriter writer = new ObjectMapper().writerWithDefaultPrettyPrinter();
+        exp = writer.writeValueAsString(expMap);
+        
+        Map<String, Object> act = new TreeMap<>(XContentHelper.convertToMap(JsonXContent.jsonXContent, Strings.toString(content), true));
+        assertEquals(message, exp, writer.writeValueAsString(act));
     }
 
 }

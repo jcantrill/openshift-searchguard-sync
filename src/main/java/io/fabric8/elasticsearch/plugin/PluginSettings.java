@@ -61,7 +61,7 @@ public class PluginSettings implements ConfigurationSettings {
         this.searchGuardIndex = settings.get(SEARCHGUARD_CONFIG_INDEX_NAME, DEFAULT_SECURITY_CONFIG_INDEX);
         this.kibanaVersion = settings.get(KIBANA_CONFIG_VERSION, DEFAULT_KIBANA_VERSION);
         this.kbnVersionHeader = settings.get(KIBANA_VERSION_HEADER, DEFAULT_KIBANA_VERSION_HEADER);
-        this.opsIndexPatterns = new HashSet<String>(Arrays.asList(settings.getAsArray(OPENSHIFT_KIBANA_OPS_INDEX_PATTERNS, DEFAULT_KIBANA_OPS_INDEX_PATTERNS)));
+        this.opsIndexPatterns = new HashSet<String>(settings.getAsList(OPENSHIFT_KIBANA_OPS_INDEX_PATTERNS, Arrays.asList(DEFAULT_KIBANA_OPS_INDEX_PATTERNS)));
         this.expireInMillis = settings.getAsLong(OPENSHIFT_ACL_EXPIRE_IN_MILLIS, new Long(1000 * 60));
 
         LOGGER.info("Using kibanaIndexMode: '{}'", this.kibanaIndexMode);
