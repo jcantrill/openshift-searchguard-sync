@@ -33,6 +33,7 @@
 
 package io.fabric8.elasticsearch.plugin.acl;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -54,10 +55,6 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.loader.JsonSettingsLoader;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -65,6 +62,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.SearchGuardDeprecationHandler;
 
 /*
  * HACK: Copy of SG ConfigurationLoader to make use of ConfigurationLoader 
@@ -73,13 +71,11 @@ public class ConfigurationLoader {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final Client client;
-    private final ThreadContext threadContext;
     private final String searchguardIndex;
     
     public ConfigurationLoader(final Client client, ThreadPool threadPool, final Settings settings) {
         super();
         this.client = client;
-        this.threadContext = threadPool.getThreadContext();
         this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         log.debug("Index is: {}", searchguardIndex);
     }
@@ -144,63 +140,69 @@ public class ConfigurationLoader {
         mget.refresh(true);
         mget.realtime(true);
         
-        try (StoredContext ctx = threadContext.stashContext()) {
-            threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-        
-            client.multiGet(mget, new ActionListener<MultiGetResponse>() {
-                @Override
-                public void onResponse(MultiGetResponse response) {
-                    MultiGetItemResponse[] responses = response.getResponses();
-                    for (int i = 0; i < responses.length; i++) {
-                        MultiGetItemResponse singleResponse = responses[i];
-                        if(singleResponse != null && !singleResponse.isFailed()) {
-                            GetResponse singleGetResponse = singleResponse.getResponse();
-                            if(singleGetResponse.isExists() && !singleGetResponse.isSourceEmpty()) {
-                                //success
-                                Long version = singleGetResponse.getVersion();
-                                final Settings _settings = toSettings(singleGetResponse.getSourceAsBytesRef(), singleGetResponse.getType());
-                                if(_settings != null) {
-                                    callback.success(singleGetResponse.getType(), _settings, version);
-                                } else {
-                                    log.error("Cannot parse settings for " + singleGetResponse.getType());
-                                }
+        client.multiGet(mget, new ActionListener<MultiGetResponse>() {
+            @Override
+            public void onResponse(MultiGetResponse response) {
+                MultiGetItemResponse[] responses = response.getResponses();
+                for (int i = 0; i < responses.length; i++) {
+                    MultiGetItemResponse singleResponse = responses[i];
+                    if(singleResponse != null && !singleResponse.isFailed()) {
+                        GetResponse singleGetResponse = singleResponse.getResponse();
+                        if(singleGetResponse.isExists() && !singleGetResponse.isSourceEmpty()) {
+                            //success
+                            Long version = singleGetResponse.getVersion();
+                            final Settings _settings = toSettings(singleGetResponse.getSourceAsBytesRef(), singleGetResponse.getType());
+                            if(_settings != null) {
+                                callback.success(singleGetResponse.getType(), _settings, version);
                             } else {
-                                //does not exist or empty source
-                                callback.noData(singleGetResponse.getType());
+                                log.error("Cannot parse settings for " + singleGetResponse.getType());
                             }
                         } else {
-                            //failure
-                            callback.singleFailure(singleResponse == null ? null : singleResponse.getFailure());
+                            //does not exist or empty source
+                            callback.noData(singleGetResponse.getType());
                         }
+                    } else {
+                        //failure
+                        callback.singleFailure(singleResponse == null ? null : singleResponse.getFailure());
                     }
-                }           
-                
-                @Override
-                public void onFailure(Exception e) {
-                    callback.failure(e);
                 }
-            });
-        }
+            }           
+            
+            @Override
+            public void onFailure(Exception e) {
+                callback.failure(e);
+            }
+        });
     }
 
-    private Settings toSettings(final BytesReference ref, final String type) {
+    private Settings toSettings(final BytesReference ref, final String id) {
         if (ref == null || ref.length() == 0) {
+            log.error("Empty or null byte reference for {}", id);
             return null;
         }
-        
-        try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, ref, XContentType.JSON)){
+        XContentParser parser = null;
+        try {
+            parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, ref, XContentType.JSON);
             parser.nextToken();
             parser.nextToken();
          
-            if(!type.equals((parser.currentName()))) {
+            if(!id.equals((parser.currentName()))) {
                 return null;
             }
             
             parser.nextToken();
             
-            return Settings.builder().put(parser.map()).build();
+            return Settings.builder().loadFromStream("dummy.json", new ByteArrayInputStream(parser.binaryValue()), true).build();
         } catch (final IOException e) {
             throw ExceptionsHelper.convertToElastic(e);
+        } finally {
+            if(parser != null) {
+                try {
+                    parser.close();
+                } catch (IOException e) {
+                    //ignore
+                }
+            }
         }
     }
 }

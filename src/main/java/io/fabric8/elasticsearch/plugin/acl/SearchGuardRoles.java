@@ -29,17 +29,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang.ObjectUtils;
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
-import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Roles.Indices;
-import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Roles.Indices.Type;
+import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Role.Indices;
+import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Role.Indices.Type;
 
 public class SearchGuardRoles
-        implements Iterable<SearchGuardRoles.Roles>, ConfigurationSettings, SearchGuardACLDocument<SearchGuardRoles> {
+        implements Iterable<SearchGuardRoles.Role>, ConfigurationSettings, SearchGuardACLDocument<SearchGuardRoles> {
 
     public static final String ROLE_PREFIX = "gen";
     public static final String PROJECT_PREFIX = ROLE_PREFIX + "_project";
@@ -49,10 +49,10 @@ public class SearchGuardRoles
     private static final String CLUSTER_HEADER = "cluster";
     private static final String INDICES_HEADER = "indices";
 
-    private Map<String, Roles> roles = new HashMap<>();
+    private Map<String, Role> roles = new HashMap<>();
     private Long version;
 
-    public static class Roles {
+    public static class Role {
 
         private String name;
         private String expires;
@@ -62,10 +62,10 @@ public class SearchGuardRoles
 
         private List<Indices> indices = new ArrayList<>();
         
-        public Roles() {
+        public Role() {
         }
 
-        public Roles(String name) {
+        public Role(String name) {
             this.name = name;
         }
 
@@ -208,7 +208,7 @@ public class SearchGuardRoles
     }
 
     @Override
-    public Iterator<Roles> iterator() {
+    public Iterator<Role> iterator() {
         return new ArrayList<>(roles.values()).iterator();
     }
 
@@ -217,12 +217,12 @@ public class SearchGuardRoles
         return ToStringBuilder.reflectionToString(this, ToStringStyle.SHORT_PREFIX_STYLE);
     }
 
-    public void removeRole(Roles role) {
+    public void removeRole(Role role) {
         roles.remove(role.getName());
     }
 
-    public void addAll(Collection<Roles> roles) {
-        for (Roles role : roles) {
+    public void addAll(Collection<Role> roles) {
+        for (Role role : roles) {
             this.roles.put(role.getName(), role);
         }
     }
@@ -239,24 +239,21 @@ public class SearchGuardRoles
         
         RolesBuilder builder = new RolesBuilder();
 
-        for (String key : source.keySet()) {
+        for (String key : source.names()) {
             RoleBuilder roleBuilder = new RoleBuilder(key);
 
             // get out cluster and indices
-            Map<String, Object> role = (Map<String, Object>) source.get(key);
+            Settings role = source.getAsSettings(key);
 
-            List<String> cluster = (List<String>) ObjectUtils.defaultIfNull(role.get(CLUSTER_HEADER), Collections.EMPTY_LIST);
+            List<String> cluster = role.getAsList(CLUSTER_HEADER, Collections.EMPTY_LIST);
             roleBuilder.setClusters(cluster);
-            if(role.containsKey(EXPIRES)) {
-                roleBuilder.expires((String)role.get(EXPIRES));
+            if(role.hasValue(EXPIRES)) {
+                roleBuilder.expires(role.get(EXPIRES));
             }
-
-            Map<String, Map<String, List<String>>> indices = (Map<String, Map<String, List<String>>>) ObjectUtils
-                    .defaultIfNull(role.get(INDICES_HEADER), new HashMap<>());
-
-            for (String index : indices.keySet()) {
-                for (String type : indices.get(index).keySet()) {
-                    List<String> actions = indices.get(index).get(type);
+            Settings indices = role.getAsSettings(INDICES_HEADER);
+            for (String index : indices.names()) {
+                for (String type : indices.getAsSettings(index).names()) {
+                    List<String> actions = indices.getAsSettings(index).getAsList(type);
                     roleBuilder.setActions(index, type, actions);
                 }
             }
@@ -276,8 +273,9 @@ public class SearchGuardRoles
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException{
         try {
+            builder.startObject();
             // output keys are names of roles
-            for (Roles role : roles.values()) {
+            for (Role role : roles.values()) {
                 builder.startObject(role.getName());
                 if (!role.getCluster().isEmpty()) {
                     builder.array(CLUSTER_HEADER, role.getCluster().toArray());
@@ -306,6 +304,7 @@ public class SearchGuardRoles
                 }
                 builder.endObject();
             }
+            builder.endObject();
             return builder;
         } catch (IOException e) {
             throw new RuntimeException("Unable to convert the SearchGuardRoles to JSON", e);

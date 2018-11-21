@@ -25,8 +25,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.loader.YamlSettingsLoader;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 
@@ -176,7 +176,7 @@ public class FileAuthenticationBackend implements AuthenticationBackend, HTTPAut
         if (now > lastModified) {
             try {
                 final String ref = FileUtils.readFileToString(auth);
-                mappings = Settings.builder().put(new YamlSettingsLoader(true).load(ref)).build();
+                mappings = Settings.builder().loadFromSource(ref, XContentType.YAML).build();
                 lastModified = now;
             } catch (final Exception e) {
                 throw new OpenShiftElasticSearchConfigurationException("Unable to parse " + auth.getAbsolutePath(), e);

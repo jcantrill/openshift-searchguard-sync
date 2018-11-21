@@ -37,6 +37,8 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.junit.Test;
 
+import com.floragunn.searchguard.support.SearchGuardDeprecationHandler;
+
 import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
 import io.fabric8.elasticsearch.plugin.KibanaIndexMode;
 import io.fabric8.elasticsearch.plugin.OpenshiftRequestContextFactory;
@@ -59,7 +61,7 @@ public class OpenShiftRestResponseTest implements ConfigurationSettings{
     }
     
     private XContentParser givenContentParser(String body) throws Exception {
-        return XCONTENT.createParser(NamedXContentRegistry.EMPTY, String.format(body, KIBANA_INDEX)); 
+        return XCONTENT.createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, String.format(body, KIBANA_INDEX)); 
     }
     
     private void thenResponseShouldBeModified(OpenShiftRestResponse osResponse, String expPattern) {
@@ -74,7 +76,7 @@ public class OpenShiftRestResponseTest implements ConfigurationSettings{
                 + "\"_score\":1.0,\"_source\":{\"key\":\"value\",\"version\":\"5.6.10\"}},{\"_index\":\"%1$s\",\"_type\":\"config\","
                 + "\"_id\":\"2\",\"_score\":1.0,\"_source\":{\"key\":\"value\",\"version\":\"5.6.10\"}}]}}";
         
-        XContentParser parser = XCONTENT.createParser(NamedXContentRegistry.EMPTY, String.format(body, KIBANA_INDEX));
+        XContentParser parser = XCONTENT.createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, String.format(body, KIBANA_INDEX));
         SearchResponse actionResponse = SearchResponse.fromXContent(parser);
         
         OpenShiftRestResponse osResponse = whenCreatingResponseResponse(actionResponse);
@@ -85,9 +87,9 @@ public class OpenShiftRestResponseTest implements ConfigurationSettings{
     public void testIndexResponse() throws Exception {
         
         String body = "{\"_index\":\"%s\",\"_type\":\"index-pattern\",\"_id\":\"0\",\"_version\":1,\"result\":\"created\",\"_shards\":"
-                + "{\"total\":2,\"successful\":1,\"failed\":0},\"created\":true}";
+                + "{\"total\":2,\"successful\":1,\"failed\":0}}";
         
-        XContentParser parser = XCONTENT.createParser(NamedXContentRegistry.EMPTY, String.format(body, KIBANA_INDEX));
+        XContentParser parser = XCONTENT.createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, String.format(body, KIBANA_INDEX));
         IndexResponse actionResponse = IndexResponse.fromXContent(parser);
         
         OpenShiftRestResponse osResponse = whenCreatingResponseResponse(actionResponse);
@@ -109,7 +111,7 @@ public class OpenShiftRestResponseTest implements ConfigurationSettings{
     @Test
     public void testDeleteResponse() throws Exception {
         
-        String body = "{\"found\":true,\"_index\":\"%s\""
+        String body = "{\"_index\":\"%s\""
                 + ",\"_type\":\"config\",\"_id\":\"0\",\"_version\":2,\"result\":\"deleted\",\"_shards\":"
                 + "{\"total\":2,\"successful\":1,\"failed\":0}}";
         

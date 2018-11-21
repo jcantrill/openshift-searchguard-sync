@@ -17,18 +17,15 @@
 package io.fabric8.elasticsearch.plugin.acl;
 
 import static io.fabric8.elasticsearch.plugin.TestUtils.assertYaml;
-import static io.fabric8.elasticsearch.plugin.TestUtils.buildMap;
 import static org.junit.Assert.assertEquals;
 
-import java.io.StringReader;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Test;
 
@@ -129,16 +126,16 @@ public class SearchGuardRolesMappingACLTest {
             .build();
         SearchGuardRolesMapping sgMapping = new SearchGuardRolesMapping();
         sgMapping.addAll(mappings);
-        final String out = XContentHelper.toString(sgMapping);
-        Map<String, Object> in = XContentHelper.convertToMap(new BytesArray(out), true, XContentType.JSON).v2();
-        SearchGuardRolesMapping inMapping = new SearchGuardRolesMapping().load(in);
-        assertEquals("Exp serialization to equal derialization", out, XContentHelper.toString(inMapping));
+        final String out = Strings.toString(sgMapping);
+        SearchGuardRolesMapping in = new SearchGuardRolesMapping()
+                .load(Settings.builder().loadFromSource(out, XContentType.JSON).build());
+        assertEquals("Exp serialization to equal derialization", out, Strings.toString(in));
     }
 
     @Test
     public void testRemove() throws Exception {
         SearchGuardRolesMapping mappings = new SearchGuardRolesMapping()
-                .load(buildMap(new StringReader(Samples.ROLESMAPPING_ACL.getContent())));
+                .load(Settings.builder().loadFromSource(Samples.ROLESMAPPING_ACL.getContent(), XContentType.YAML).build());
         for (RolesMapping mapping : mappings) {
             mappings.removeRolesMapping(mapping);
         }

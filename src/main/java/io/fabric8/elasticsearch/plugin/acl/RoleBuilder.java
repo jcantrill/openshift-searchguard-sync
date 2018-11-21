@@ -24,13 +24,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Roles;
-import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Roles.Indices;
-import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Roles.Indices.Type;
+import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Role;
+import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Role.Indices;
+import io.fabric8.elasticsearch.plugin.acl.SearchGuardRoles.Role.Indices.Type;
 
 public class RoleBuilder {
 
-    private Roles role = new Roles();
+    private Role role = new Role();
     private String name;
     private Set<String> clusters = new HashSet<String>();
     private Map<String, HashMap<String, HashSet<String>>> indices = new HashMap<String, HashMap<String, HashSet<String>>>();
@@ -78,7 +78,7 @@ public class RoleBuilder {
         return setActions(index, type, Arrays.asList(actions));
     }
 
-    public Roles build() {
+    public Role build() {
         role.setName(name);
         role.setCluster(new ArrayList<String>(clusters));
         role.setExpires(expires);

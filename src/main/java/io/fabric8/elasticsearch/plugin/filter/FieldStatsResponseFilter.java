@@ -21,8 +21,8 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.fieldstats.FieldStatsRequest;
-import org.elasticsearch.action.fieldstats.FieldStatsResponse;
+//import org.elasticsearch.action.fieldstats.FieldStatsRequest;
+//import org.elasticsearch.action.fieldstats.FieldStatsResponse;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.common.logging.Loggers;
@@ -60,6 +60,7 @@ public class FieldStatsResponseFilter implements ActionFilter {
     @Override
     public void apply(final Task task, final String action, final ActionRequest request, final ActionListener listener,
             final ActionFilterChain chain) {
+/*        
         if(INDICES_FIELD_STATS_READ_ACTION.equals(action)) {
             chain.proceed(task, action, request, new ActionListener<ActionResponse>() {
                 
@@ -100,5 +101,6 @@ public class FieldStatsResponseFilter implements ActionFilter {
             chain.proceed(task, action, request, listener);  
         }
 
+ */
     }
 }
