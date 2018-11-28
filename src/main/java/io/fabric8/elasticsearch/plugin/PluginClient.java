@@ -29,7 +29,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequestBuilder;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequestBuilder;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
@@ -41,13 +40,14 @@ import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequestBuilder;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequestBuilder;
-import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequestBuilder;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.update.UpdateRequestBuilder;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.logging.Loggers;
@@ -195,11 +195,11 @@ public class PluginClient {
         });
     }
 
-    public UpdateSettingsResponse updateSettings(final String index, Settings settings) {
-        return execute(new Callable<UpdateSettingsResponse>() {
+    public AcknowledgedResponse updateSettings(final String index, Settings settings) {
+        return execute(new Callable<AcknowledgedResponse>() {
 
             @Override
-            public UpdateSettingsResponse call() throws Exception {
+            public AcknowledgedResponse call() throws Exception {
                 UpdateSettingsRequestBuilder builder = client.admin().indices().prepareUpdateSettings(index)
                         .setSettings(settings);
                 return builder.get();
@@ -296,7 +296,7 @@ public class PluginClient {
                     LOGGER.debug("Creating alias for {} as {}", entry.getKey(), entry.getValue());
                     builder.addAlias(entry.getKey(), entry.getValue());
                 }
-                IndicesAliasesResponse response = builder.get();
+                AcknowledgedResponse response = builder.get();
                 acknowledged = response.isAcknowledged();
                 LOGGER.debug("Aliases request acknowledged? {}", acknowledged);
                 return acknowledged;
