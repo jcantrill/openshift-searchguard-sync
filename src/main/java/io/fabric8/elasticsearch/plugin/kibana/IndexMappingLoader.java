@@ -25,16 +25,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 
 import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
 
 public class IndexMappingLoader implements ConfigurationSettings {
 
-    private static Logger logger = Loggers.getLogger(IndexMappingLoader.class);
+    private static Logger logger = LogManager.getLogger(IndexMappingLoader.class);
     private final String appMappingsTemplate;
     private final String opsMappingsTemplate;
     private final String emptyProjectMappingsTemplate;

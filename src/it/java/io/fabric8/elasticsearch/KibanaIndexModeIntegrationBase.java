@@ -16,8 +16,6 @@
 
 package io.fabric8.elasticsearch;
 
-import static org.junit.Assert.assertEquals;
-
 import java.util.Map;
 
 import org.elasticsearch.common.xcontent.XContentHelper;

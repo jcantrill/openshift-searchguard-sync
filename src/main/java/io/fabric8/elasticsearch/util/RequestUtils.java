@@ -28,12 +28,11 @@ import java.util.TreeMap;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
@@ -42,12 +41,11 @@ import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
 import io.fabric8.elasticsearch.plugin.OpenshiftAPIService;
 import io.fabric8.elasticsearch.plugin.OpenshiftRequestContextFactory.OpenshiftRequestContext;
 import io.fabric8.elasticsearch.plugin.PluginSettings;
-
 import io.netty.channel.Channel;
 
 public class RequestUtils implements ConfigurationSettings  {
     
-    private static final Logger LOGGER = Loggers.getLogger(RequestUtils.class);
+    private static final Logger LOGGER = LogManager.getLogger(RequestUtils.class);
     public static final String AUTHORIZATION_HEADER = "authorization";
     public static final String X_FORWARDED_ACCESS_TOKEN = "x-forwarded-access-token";
 

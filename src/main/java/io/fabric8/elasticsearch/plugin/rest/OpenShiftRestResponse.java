@@ -19,11 +19,11 @@ package io.fabric8.elasticsearch.plugin.rest;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 
@@ -33,7 +33,7 @@ class OpenShiftRestResponse extends RestResponse {
 
     private final RestResponse response;
     private final BytesReference content;
-    private static final Logger LOGGER = Loggers.getLogger(OpenShiftRestResponse.class);
+    private static final Logger LOGGER = LogManager.getLogger(OpenShiftRestResponse.class);
     
     OpenShiftRestResponse(final RestResponse response, final OpenshiftRequestContext context, final String defaultKibanaIndex){
         this.response = response;

@@ -24,13 +24,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 
 public class PluginSettings implements ConfigurationSettings {
 
-    private static final Logger LOGGER = Loggers.getLogger(PluginSettings.class);
+    private static final Logger LOGGER = LogManager.getLogger(PluginSettings.class);
 
     private String kibanaIndexMode;
     private String roleStrategy;

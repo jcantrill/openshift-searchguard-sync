@@ -43,6 +43,7 @@ import javax.net.ssl.X509TrustManager;
 import javax.xml.bind.DatatypeConverter;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.DocWriteResponse.Result;
@@ -56,17 +57,10 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
-import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.BoundTransportAddress;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
@@ -74,12 +68,10 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.node.Node;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
-import org.elasticsearch.test.ESIntegTestCase;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -110,11 +102,10 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-@ClusterScope(scope=Scope.TEST, numDataNodes=1, minNumDataNodes=1)
+@ClusterScope(scope = Scope.TEST, numDataNodes = 1, minNumDataNodes = 1)
 public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
 
-    protected static final Logger log = Loggers.getLogger(ElasticsearchIntegrationTest.class);
-    private static final String CLUSTER_NAME = "openshift_elastic_test_cluster";
+    protected static final Logger log = LogManager.getLogger(ElasticsearchIntegrationTest.class);
     private static final String USERNAME = "username";
     protected static final String RESPONSE = "response";
     private static final String URI = "uri";
@@ -128,12 +119,6 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
     @Rule
     public OpenShiftServer apiServer = new OpenShiftServer();
 
-//    protected Node esNode1;
-//    protected Set<TransportAddress> httpAdresses = new HashSet<TransportAddress>();
-//    protected String nodeHost;
-//    protected int nodePort;
-//    private String httpHost = null;
-//    private int httpPort = -1;
     protected Map<String, Object> testContext;
 
     @BeforeClass
@@ -231,16 +216,6 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
             throw new RuntimeException(e);
         }
         Settings settings = Settings.builder()
-//                .put("path.home", tmp)
-//                .put("path.conf", basedir + "/src/test/resources")
-//                .put("http.port", 9200)
-//                .put("transport.tcp.port", 9300)
-                .put("cluster.name", CLUSTER_NAME)
-//                .put("discovery.zen.minimum_master_nodes", 1)
-//                .put("node.data", true)
-//                .put("node.master", true)
-//                .put("gateway.expected_nodes", 1)
-//                .put("discovery.zen.minimum_master_nodes", 1)
                 .putList("searchguard.authcz.admin_dn", "CN=*")
                 .putList("searchguard.nodes_dn", "CN=*")
                 .put(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ".searchguard")
@@ -296,25 +271,10 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
         return 1;
     }
     
-    
-
-//    @After
-//    public void tearDown() throws Exception {
-//        Thread.sleep(500);
-//        if (esNode1 != null) {
-//            log.info("--------- Stopping ES Node ----------");
-//            esNode1.close();
-//        }
-//    }
-    
     @Before
     public void setup() throws Exception {
         testContext = new HashMap<>();
-//        startES(nodeSettings(), 30, 1);
-//    }
-//    
-//    public final void startES(final Settings settings, int timeOutSec, int assertNodes) throws Exception {
-        // setup api server
+
         final String masterUrl = apiServer.getMockServer().url("/").toString();
         System.setProperty(Config.KUBERNETES_MASTER_SYSTEM_PROPERTY, masterUrl);
         System.setProperty("kubernetes.trust.certificates", "true");
@@ -324,16 +284,9 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
         System.setProperty("kubernetes.truststore.passphrase", password);
         System.setProperty("sg.display_lic_none", "true");
 
-//        FileUtils.deleteDirectory(new File("data"));
-
-//        esNode1 = new Node(settings);
-//        esNode1.getNodeEnvironment().
         log.debug("--------- Starting ES Node ----------");
-//        esNode1.start();
         log.debug("--------- Waiting for the cluster to go green ----------");
         ensureGreen();
-//        waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(timeOutSec), esNode1.client(),
-//                assertNodes);
 
         seedSearchGuardAcls();
         // seed kibana index like kibana

@@ -29,8 +29,8 @@ import javax.net.ssl.X509TrustManager;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.logging.Loggers;
 
 import io.fabric8.elasticsearch.util.RequestUtils;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -43,7 +43,7 @@ import okio.Buffer;
 
 public class RequestRunner {
     
-    private static final Logger log = Loggers.getLogger(RequestRunner.class);
+    private static final Logger log = LogManager.getLogger(RequestRunner.class);
     private String username;
     private Map<String, String> headers;
     private String method;

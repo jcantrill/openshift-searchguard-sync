@@ -24,10 +24,10 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestChannel;
@@ -75,7 +75,7 @@ import io.fabric8.elasticsearch.plugin.acl.SearchGuardRolesMapping;
  */
 public class OpenShiftTokenAuthentication implements AuthenticationBackend, HTTPAuthenticator {
 
-    private static final Logger LOGGER = Loggers.getLogger(OpenShiftTokenAuthentication.class);
+    private static final Logger LOGGER = LogManager.getLogger(OpenShiftTokenAuthentication.class);
     private final Map<String, Settings> sars;
 
     public OpenShiftTokenAuthentication(final Settings settings) {
