@@ -16,29 +16,7 @@
 
 package io.fabric8.elasticsearch.plugin.filter;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-//import org.elasticsearch.action.fieldstats.FieldStatsRequest;
-import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.tasks.Task;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import io.fabric8.elasticsearch.plugin.PluginClient;
-
-@SuppressWarnings("rawtypes")
+//@SuppressWarnings("rawtypes")
 public class FieldStatsResponseFilterTest {
 /*
     private FieldStatsResponseFilter filter;

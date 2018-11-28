@@ -33,9 +33,9 @@ import java.util.Set;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
 
@@ -47,7 +47,7 @@ import io.fabric8.elasticsearch.util.RequestUtils;
  */
 public class OpenshiftRequestContextFactory {
 
-    private static final Logger LOGGER = Loggers.getLogger(OpenshiftRequestContextFactory.class);
+    private static final Logger LOGGER = LogManager.getLogger(OpenshiftRequestContextFactory.class);
 
     private final OpenshiftAPIService apiService;
     private final RequestUtils utils;
@@ -55,9 +55,7 @@ public class OpenshiftRequestContextFactory {
     private final String kibanaPrefix;
     private String kibanaIndexMode;
 
-    public OpenshiftRequestContextFactory(
-            final Settings settings,
-            final RequestUtils utils,
+    public OpenshiftRequestContextFactory(final Settings settings, final RequestUtils utils,
             final OpenshiftAPIService apiService) {
         this.apiService = apiService;
         this.utils = utils;
@@ -75,9 +73,11 @@ public class OpenshiftRequestContextFactory {
     /**
      * Create a user context from the given request
      *
-     * @param   request - The RestRequest to create from
-     * @return  an OpenshiftRequestContext
-     * @throws  java.lang.Exception for any exception encountered
+     * @param request
+     *            - The RestRequest to create from
+     * @return an OpenshiftRequestContext
+     * @throws java.lang.Exception
+     *             for any exception encountered
      */
     public OpenshiftRequestContext create(final RestRequest request) throws Exception {
         logRequest(request);
@@ -86,14 +86,15 @@ public class OpenshiftRequestContextFactory {
         boolean isClusterAdmin = false;
         String user = utils.getUser(request);
         String token = utils.getBearerToken(request);
-        if (StringUtils.isNotBlank(token)){
+        if (StringUtils.isNotBlank(token)) {
             user = utils.assertUser(request);
             isClusterAdmin = utils.isOperationsUser(request);
-            if(user.contains("\\")){
+            if (user.contains("\\")) {
                 user = user.replace("\\", "/");
             }
             projects = listProjectsFor(user, token);
-            return new OpenshiftRequestContext(user, token, isClusterAdmin, projects, getKibanaIndex(user, isClusterAdmin), this.kibanaIndexMode);
+            return new OpenshiftRequestContext(user, token, isClusterAdmin, projects,
+                    getKibanaIndex(user, isClusterAdmin), this.kibanaIndexMode);
         }
         LOGGER.debug("Returning EMPTY request context; either was provided client cert or empty token.");
         return OpenshiftRequestContext.EMPTY;
@@ -104,12 +105,12 @@ public class OpenshiftRequestContextFactory {
             String user = utils.getUser(request);
             String token = utils.getBearerToken(request);
             LOGGER.debug("Handling Request... {}", request.uri());
-            if(LOGGER.isTraceEnabled()) {
+            if (LOGGER.isTraceEnabled()) {
                 List<String> headers = new ArrayList<>();
                 for (Entry<String, List<String>> entry : request.getHeaders().entrySet()) {
-                    if(RequestUtils.AUTHORIZATION_HEADER.equals(entry.getKey().toLowerCase())){
+                    if (RequestUtils.AUTHORIZATION_HEADER.equals(entry.getKey().toLowerCase())) {
                         headers.add(entry.getKey() + "=Bearer <REDACTED>");
-                    }else {
+                    } else {
                         headers.add(entry.getKey() + "=" + entry.getValue());
                     }
                 }
@@ -130,7 +131,7 @@ public class OpenshiftRequestContextFactory {
         if (sm != null) {
             sm.checkPermission(new SpecialPermission());
         }
-        return AccessController.doPrivileged(new PrivilegedAction<Set<Project>>(){
+        return AccessController.doPrivileged(new PrivilegedAction<Set<Project>>() {
 
             @Override
             public Set<Project> run() {
@@ -167,7 +168,7 @@ public class OpenshiftRequestContextFactory {
         return kibanaPrefix + "." + getUsernameHash(username);
 
     }
-    
+
     public static String getUsernameHash(String username) {
         return DigestUtils.sha1Hex(username);
     }
@@ -184,7 +185,7 @@ public class OpenshiftRequestContextFactory {
         private final String kibanaIndex;
         private final String kibanaIndexMode;
 
-        public OpenshiftRequestContext(final String user, final String token, boolean isClusterAdmin, 
+        public OpenshiftRequestContext(final String user, final String token, boolean isClusterAdmin,
                 Set<Project> projects, String kibanaIndex, final String kibanaIndexMode) {
             this.user = user;
             this.token = token;

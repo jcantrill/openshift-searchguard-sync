@@ -23,11 +23,11 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.rest.RestStatus;
@@ -50,7 +50,7 @@ public class OpenshiftAPIService {
     private static final String ACCEPT = "Accept";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String APPLICATION_JSON = "application/json";
-    private static final Logger LOGGER = Loggers.getLogger(OpenshiftAPIService.class);
+    private static final Logger LOGGER = LogManager.getLogger(OpenshiftAPIService.class);
     private final OpenShiftClientFactory factory;
     
     public OpenshiftAPIService() {

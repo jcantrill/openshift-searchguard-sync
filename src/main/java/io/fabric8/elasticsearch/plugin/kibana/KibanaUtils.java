@@ -27,10 +27,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.search.SearchHit;
 
 import com.github.zafarkhaja.semver.Version;
@@ -45,7 +44,7 @@ import io.fabric8.elasticsearch.plugin.model.Project;
 
 public class KibanaUtils {
     
-    private static final Logger LOGGER = Loggers.getLogger(KibanaUtils.class);
+    private static final Logger LOGGER = LogManager.getLogger(KibanaUtils.class);
     public static final String INDICIES_TYPE = "index-pattern";
     public static final Project ALL_ALIAS = new Project(".all", null);
     public static final Project EMPTY_PROJECT = new Project(".empty-project", null);

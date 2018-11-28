@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.lang.math.NumberUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteRequest.OpType;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -38,7 +39,6 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -65,7 +65,7 @@ import io.fabric8.elasticsearch.plugin.acl.SearchGuardRolesMapping.RolesMapping;
 public class ACLDocumentManager implements ConfigurationSettings {
     
     private static final String [] CONFIG_DOCS = {SEARCHGUARD_ROLE_TYPE, SEARCHGUARD_MAPPING_TYPE};
-    private static final Logger LOGGER = Loggers.getLogger(ACLDocumentManager.class);
+    private static final Logger LOGGER = LogManager.getLogger(ACLDocumentManager.class);
     private final ReentrantLock lock = new ReentrantLock();
     private final String searchGuardIndex;
     private final PluginClient client;

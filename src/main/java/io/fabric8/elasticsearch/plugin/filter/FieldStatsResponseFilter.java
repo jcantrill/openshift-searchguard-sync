@@ -16,17 +16,14 @@
 
 package io.fabric8.elasticsearch.plugin.filter;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 //import org.elasticsearch.action.fieldstats.FieldStatsRequest;
 //import org.elasticsearch.action.fieldstats.FieldStatsResponse;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 
 import io.fabric8.elasticsearch.plugin.PluginClient;
@@ -44,7 +41,7 @@ import io.fabric8.elasticsearch.plugin.PluginClient;
 public class FieldStatsResponseFilter implements ActionFilter {
     
     public static final String INDICES_FIELD_STATS_READ_ACTION = "indices:data/read/field_stats";
-    private static final Logger LOGGER = Loggers.getLogger(FieldStatsResponseFilter.class);
+    private static final Logger LOGGER = LogManager.getLogger(FieldStatsResponseFilter.class);
     private final PluginClient client;
     
     public FieldStatsResponseFilter(PluginClient client) {
@@ -56,7 +53,7 @@ public class FieldStatsResponseFilter implements ActionFilter {
         return Integer.MAX_VALUE;
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
+//    @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
     public void apply(final Task task, final String action, final ActionRequest request, final ActionListener listener,
             final ActionFilterChain chain) {

@@ -19,10 +19,10 @@ package io.fabric8.elasticsearch.plugin.acl;
 import java.util.function.UnaryOperator;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestHandler;
@@ -41,7 +41,7 @@ import io.fabric8.elasticsearch.util.RequestUtils;
  */
 public class DynamicACLFilter implements ConfigurationSettings {
 
-    private static final Logger LOGGER = Loggers.getLogger(DynamicACLFilter.class);
+    private static final Logger LOGGER = LogManager.getLogger(DynamicACLFilter.class);
     private final String kibanaVersion;
     private final String kbnVersionHeader;
     private final String cdmProjectPrefix;

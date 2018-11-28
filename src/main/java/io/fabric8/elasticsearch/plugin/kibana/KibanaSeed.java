@@ -22,11 +22,11 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 
 import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
@@ -39,7 +39,7 @@ public class KibanaSeed implements ConfigurationSettings {
 
     private static final String CONFIG_DOC_TYPE = "config";
     private static final String INDICIES_TYPE = "index-pattern";
-    private static final Logger LOGGER = Loggers.getLogger(KibanaSeed.class);
+    private static final Logger LOGGER = LogManager.getLogger(KibanaSeed.class);
 
     public static final String DEFAULT_INDEX_FIELD = "defaultIndex";
 
