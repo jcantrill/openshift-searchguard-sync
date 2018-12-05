@@ -36,12 +36,12 @@ public class KibanaIndexModeUniqueIntegrationTest extends KibanaIndexModeIntegra
         final String userName = "nonadminuser";
         //artificially seed user's kibanaIndex
         String kibanaIndex = getKibanaIndex(KibanaIndexMode.UNIQUE, userName, false);
-        givenDocumentIsIndexed(kibanaIndex, "config", "0", "myKibanaIndex");
+        givenDocumentIsIndexed(kibanaIndex, "config", "4.6.4", "myKibanaIndex");
         givenUserIsNotClusterAdmin(userName);
         givenUserIsAdminForProjects(projects);
 
         //verify access to unique kibana index
-        whenGettingDocument(String.format("%s/config/0", kibanaIndex));
+        whenGettingDocument(String.format("%s/config/4.6.4", kibanaIndex));
         assertThatResponseIsSuccessful();
         
         //verify search to individual projects
@@ -60,7 +60,7 @@ public class KibanaIndexModeUniqueIntegrationTest extends KibanaIndexModeIntegra
 
         //verify access to unique kibana index
         //this is a false positive on '.kibana' because we transform to a unique index
-        whenGettingDocument(".kibana/config/0");
+        whenGettingDocument(".kibana/config/4.6.4");
         assertThatResponseIsSuccessful();
         assertThatMessageEquals("myKibanaIndex");
     }
@@ -72,12 +72,12 @@ public class KibanaIndexModeUniqueIntegrationTest extends KibanaIndexModeIntegra
         //artificially seed user's kibanaIndex
         String kibanaIndex = getKibanaIndex(KibanaIndexMode.UNIQUE, userName, true);
 
-        givenDocumentIsIndexed(kibanaIndex, "config", "0", "myKibanaIndex");
+        givenDocumentIsIndexed(kibanaIndex, "config", "4.6.4", "myKibanaIndex");
         givenUserIsClusterAdmin(userName);
         givenUserIsAdminForProjects(projects);
         
         //verify access to unique kibana index
-        whenGettingDocument(String.format("%s/config/0", kibanaIndex));
+        whenGettingDocument(String.format("%s/config/4.6.4", kibanaIndex));
         assertThatResponseIsSuccessful();
         
         //verify search to individual projects
@@ -96,7 +96,7 @@ public class KibanaIndexModeUniqueIntegrationTest extends KibanaIndexModeIntegra
         
         //verify access to unique kibana index
         //this is a false positive on '.kibana' because we transform to a unique index
-        whenGettingDocument(".kibana/config/0");
+        whenGettingDocument(".kibana/config/4.6.4");
         assertThatResponseIsSuccessful();
         assertThatMessageEquals("myKibanaIndex");
     }
