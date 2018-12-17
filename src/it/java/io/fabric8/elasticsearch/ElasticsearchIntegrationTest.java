@@ -68,11 +68,11 @@ import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TestName;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
+import org.junit.runner.RunWith;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -98,16 +98,17 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 @ClusterScope(scope = Scope.TEST, numDataNodes = 1, minNumDataNodes = 1)
+@RunWith(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
 public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
 
     protected static final Logger log = LogManager.getLogger(ElasticsearchIntegrationTest.class);
     private static final String USERNAME = "username";
     protected static final String RESPONSE = "response";
     private static final String URI = "uri";
-    private static String basedir;
-    private static String password = "changeit";
-    private static String keyStore;
-    private static String trustStore;
+    private String basedir;
+    private String password = "changeit";
+    private String keyStore;
+    private String trustStore;
 
     @Rule
     public TestName name = new TestName();
@@ -115,14 +116,6 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
     public OpenShiftServer apiServer = new OpenShiftServer();
 
     protected Map<String, Object> testContext;
-
-    @BeforeClass
-    public static void setupOnce() throws Exception {
-        basedir = System.getenv("PROJECT_DIR");
-
-        keyStore = basedir + "/src/it/resources/keystore.jks";
-        trustStore = basedir + "/src/it/resources/truststore.jks";
-    }
     
     @Rule
     public final TestWatcher testWatcher = new TestWatcher() {
@@ -269,6 +262,10 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
     
     @Before
     public void setup() throws Exception {
+        basedir = System.getenv("PROJECT_DIR");
+
+        keyStore = basedir + "/src/it/resources/keystore.jks";
+        trustStore = basedir + "/src/it/resources/truststore.jks";
         testContext = new HashMap<>();
 
         final String masterUrl = apiServer.getMockServer().url("/").toString();
