@@ -16,8 +16,6 @@
 
 package io.fabric8.elasticsearch;
 
-import static org.junit.Assert.assertEquals;
-
 import java.util.Arrays;
 import java.util.Map;
 
@@ -39,7 +37,7 @@ public class KibanaIndexUpgradeIntegrationTest extends KibanaIndexModeIntegratio
     protected Settings additionalNodeSettings() {
         return Settings.builder()
                 .put(KibanaIndexMode.OPENSHIFT_KIBANA_INDEX_MODE, KibanaIndexMode.UNIQUE)
-                .putArray(ConfigurationSettings.OPENSHIFT_KIBANA_OPS_INDEX_PATTERNS, Arrays.asList(".all"))
+                .putList(ConfigurationSettings.OPENSHIFT_KIBANA_OPS_INDEX_PATTERNS, Arrays.asList(".all"))
                 .build();
     }
     

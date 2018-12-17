@@ -45,12 +45,7 @@ import javax.xml.bind.DatatypeConverter;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.DocWriteResponse.Result;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
-import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
-import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -216,6 +211,7 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
             throw new RuntimeException(e);
         }
         Settings settings = Settings.builder()
+                .put("bootstrap.memory_lock", false)
                 .putList("searchguard.authcz.admin_dn", "CN=*")
                 .putList("searchguard.nodes_dn", "CN=*")
                 .put(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ".searchguard")
@@ -299,19 +295,21 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
         // create ops user to avoid issue:
         // https://github.com/fabric8io/openshift-elasticsearch-plugin/issues/106
         givenDocumentIsIndexed(".operations.1970.01.01", "test", "0", "operation0");
+        setupPostHook();
+    }
+    
+    protected void setupPostHook() {
     }
 
-    protected void givenDocumentIsIndexed(String index, String type, String id, String message) throws Exception{
+    protected void givenDocumentIsIndexed(String index, String type, String id, String message){
         givenDocumentIsIndexed(index, type, id, createSimpleDocument(message));
     }
 
-    protected void givenDocumentIsIndexed(String index, String type, String id, XContentBuilder content)
-            throws Exception {
-        Client client = internalCluster().masterClient();
-        ThreadContext threadContext = client.threadPool().getThreadContext();
+    protected void givenDocumentIsIndexed(String index, String type, String id, XContentBuilder content){
+        ThreadContext threadContext = client().threadPool().getThreadContext();
         try (StoredContext cxt = threadContext.stashContext()) {
             threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            IndexResponse response = esNode1.client().prepareIndex(index, type, id)
+            IndexResponse response = client().prepareIndex(index, type, id)
                     .setSource(content)
                     .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .execute()
@@ -319,21 +317,22 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
             if(!Result.CREATED.equals(response.getResult())){
                 throw new RuntimeException("Test setup failed trying to index a document.  Exp. CREATED but was: " + response.getResult());
             }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     protected void givenDocumentIsRemoved(String index, String type, String id)
             throws Exception {
-        ThreadContext threadContext = esNode1.client().threadPool().getThreadContext();
+        ThreadContext threadContext = client().threadPool().getThreadContext();
         try (StoredContext cxt = threadContext.stashContext()) {
             threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            esNode1.client().prepareDelete(index, type, id).execute().get();
+            client().prepareDelete(index, type, id).execute().get();
         }
     }
     
     protected void dumpIndices() throws Exception {
-        Client client = internalCluster().masterClient();
-        ThreadContext threadContext = client.threadPool().getThreadContext();
+        ThreadContext threadContext = client().threadPool().getThreadContext();
         try (StoredContext cxt = threadContext.stashContext()) {
             threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
             ClusterStateResponse response = admin().cluster().prepareState().get();
@@ -361,12 +360,16 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
         }
     }
     
-    protected XContentBuilder createSimpleDocument(String value) throws IOException {
-        return XContentFactory.jsonBuilder()
-            .startObject()
-                .field("@timestamp", "1970.01.01")
-                .field("msg", value)
-            .endObject();
+    protected XContentBuilder createSimpleDocument(String value) {
+        try {
+            return XContentFactory.jsonBuilder()
+                .startObject()
+                    .field("@timestamp", "1970.01.01")
+                    .field("msg", value)
+                .endObject();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     protected void givenUserIsClusterAdmin(String user) {

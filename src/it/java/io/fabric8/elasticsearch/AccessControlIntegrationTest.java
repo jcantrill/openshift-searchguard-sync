@@ -29,8 +29,8 @@ import okhttp3.Headers;
 public class AccessControlIntegrationTest extends ElasticsearchIntegrationTest {
 
 
-    @Before
-    public void setup() throws Exception {
+    @Override
+    public void setupPostHook() {
         givenDocumentIsIndexed("project.multi-tenancy-1.uuid.1970.01.01", "test", "0", "multi-tenancy-1-doc0");
         givenDocumentIsIndexed("project.multi-tenancy-2.uuid.1970.01.01", "test", "0", "multi-tenancy-2-doc0");
         givenDocumentIsIndexed("project.multi-tenancy-3.uuid.1970.01.01", "test", "0", "multi-tenancy-3-doc0");

@@ -91,6 +91,10 @@
                     <artifactId>jackson-dataformat-yaml</artifactId>
                     <groupId>com.fasterxml.jackson.dataformat</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>com.squareup.okhttp</artifactId>
+                    <groupId>mockwebserver</groupId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -204,18 +208,6 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.12</version>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>org.hamcrest</artifactId>
-                    <groupId>hamcrest-core</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>1.9.0-rc1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -333,6 +325,13 @@
                     <excludes>
                         <exclude>**/ElasticsearchIntegrationTest.java</exclude>
                     </excludes>
+                    <classpathDependencyExcludes>
+                        <classpathDependencyExclude>org.hamcrest:hamcrest-core</classpathDependencyExclude>
+                    </classpathDependencyExcludes>
+                    <systemPropertyVariables>
+                        <tests.security.manager>false</tests.security.manager>
+                        <tests.asserts>false</tests.asserts>
+                    </systemPropertyVariables>
                 </configuration>
                 <executions>
                     <execution>

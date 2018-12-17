@@ -29,9 +29,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchResponse.Clusters;
 import org.elasticsearch.action.search.SearchResponseSections;
 import org.elasticsearch.action.search.ShardSearchFailure;
+import org.elasticsearch.action.search.SearchResponse.Clusters;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
@@ -67,7 +67,7 @@ public class KibanaUtilsTest {
         SearchResponseSections sections = new SearchResponseSections(searchHits, null, null, false, Boolean.FALSE, null,
                 0);
         ShardSearchFailure[] failures = null;
-        SearchResponse response = new SearchResponse(sections, "", 0, 0, 0, 0L, failures);
+        SearchResponse response = new SearchResponse(sections, "", 0, 0, 0, 0L, failures, Clusters.EMPTY);
 
         when(client.search(anyString(), anyString())).thenReturn(response);
     }
@@ -87,7 +87,7 @@ public class KibanaUtilsTest {
         SearchResponseSections sections = new SearchResponseSections(searchHits, null, null, false, Boolean.FALSE, null,
                 0);
         ShardSearchFailure[] failures = null;
-        SearchResponse response = new SearchResponse(sections, "", 0, 0, 0, 0L, failures);
+        SearchResponse response = new SearchResponse(sections, "", 0, 0, 0, 0L, failures, Clusters.EMPTY);
 
         when(client.search(anyString(), anyString())).thenReturn(response);
     }
