@@ -30,6 +30,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.search.SearchHit;
 
 import com.github.zafarkhaja.semver.Version;

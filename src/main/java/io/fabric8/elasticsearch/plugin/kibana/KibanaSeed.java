@@ -25,8 +25,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 
 import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
@@ -102,18 +100,6 @@ public class KibanaSeed implements ConfigurationSettings {
                 LOGGER.trace("Creating index-pattern '{}'", pattern);
                 String source = StringUtils.replace(mappingLoader.getOperationsMappingsTemplate(), "$TITLE$", pattern);
                 pluginClient.createDocument(context.getKibanaIndex(), INDICIES_TYPE, pattern, source);
-                if (!defaultSet) {
-                    try {
-                        String update = Strings.toString(XContentFactory.jsonBuilder()
-                                .startObject()
-                                    .field(KibanaSeed.DEFAULT_INDEX_FIELD, pattern)
-                                 .endObject());
-                        pluginClient.update(context.getKibanaIndex(), DEFAULT_INDEX_TYPE, kibanaVersion, update);
-                        defaultSet = true;
-                    } catch (IOException e) {
-                        LOGGER.error("Unable to set default index-pattern", e);
-                    }
-                }
                 changed = true;
             }
         }
