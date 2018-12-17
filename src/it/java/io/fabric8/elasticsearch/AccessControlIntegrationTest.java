@@ -16,7 +16,6 @@
 
 package io.fabric8.elasticsearch;
 
-import org.junit.Before;
 import org.junit.Test;
 
 import io.fabric8.elasticsearch.plugin.KibanaIndexMode;
