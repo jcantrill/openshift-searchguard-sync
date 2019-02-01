@@ -98,7 +98,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 @ClusterScope(scope = Scope.TEST, numDataNodes = 1, minNumDataNodes = 1)
-@RunWith(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
+//@RunWith(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
 public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
 
     protected static final Logger log = LogManager.getLogger(ElasticsearchIntegrationTest.class);
