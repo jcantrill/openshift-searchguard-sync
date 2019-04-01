@@ -178,10 +178,10 @@ public class OpenShiftElasticSearchPlugin extends Plugin implements Configuratio
     }
 
     @Override
-    public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays,
+    public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool,
             PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService,
             NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService) {
-        Map<String, Supplier<Transport>> transports = sgPlugin.getTransports(settings, threadPool, bigArrays,
+        Map<String, Supplier<Transport>> transports = sgPlugin.getTransports(settings, threadPool, 
                 pageCacheRecycler, circuitBreakerService, namedWriteableRegistry, networkService);
         return transports;
     }
