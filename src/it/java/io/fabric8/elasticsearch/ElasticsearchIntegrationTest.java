@@ -54,6 +54,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -64,17 +65,19 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
-import org.elasticsearch.test.ESIntegTestCase.Scope;
+import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TestName;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
+import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
@@ -97,9 +100,8 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-@ClusterScope(scope = Scope.TEST, numDataNodes = 1, minNumDataNodes = 1)
-//@RunWith(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
-public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
+@RunWith(RandomizedRunner.class)
+public abstract class ElasticsearchIntegrationTest extends ESSingleNodeTestCase{
 
     protected static final Logger log = LogManager.getLogger(ElasticsearchIntegrationTest.class);
     private static final String USERNAME = "username";
@@ -113,9 +115,9 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
     @Rule
     public TestName name = new TestName();
     @Rule
-    public OpenShiftServer apiServer = new OpenShiftServer();
+    public static OpenShiftServer apiServer = new OpenShiftServer();
 
-    protected Map<String, Object> testContext;
+    protected static Map<String, Object> testContext;
     
     @Rule
     public final TestWatcher testWatcher = new TestWatcher() {
@@ -140,28 +142,30 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
         }
 
     };
-
+    
     /*
      * Shamelessly pulled from SearchGuardAdmin
      */
-    private boolean uploadFile(Client tc, String filepath, String index, String type) {
+    private boolean uploadFile(Client tc, String filepath, String index, String _id) {
+        final String type = "sg";
         log.info("Will update '" + type + "' with " + filepath);
         try (Reader reader = new FileReader(filepath)) {
 
-            final String id = tc
-                    .index(new IndexRequest(index).type(type).id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                            .source(type, readXContent(reader, XContentType.YAML))).actionGet().getId();
+            final String res = tc
+                    .index(new IndexRequest(index).type(type).id(_id).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                            .source(_id, readXContent(reader, XContentType.YAML))).actionGet().getId();
 
-            if ("0".equals(id)) {
-                log.info("   SUCC: Configuration for '" + type + "' created or updated");
+            if (_id.equals(res)) {
+                System.out.println("   SUCC: Configuration for '" + _id + "' created or updated");
                 return true;
             } else {
-                log.info("   FAIL: Configuration for '" + type
-                        + "' failed for unknown reasons. Pls. consult logfile of elasticsearch");
+                System.out.println("   FAIL: Configuration for '" + _id
+                        + "' failed for unknown reasons. Please consult the Elasticsearch logfile.");
             }
         } catch (Exception e) {
-            log.info("   FAIL: Configuration for '" + type + "' failed because of " + e.toString());
+            System.out.println("   FAIL: Configuration for '" + _id + "' failed because of " + e.toString());
         }
+
 
         return false;
     }
@@ -171,7 +175,7 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
     }
     
     protected void seedSearchGuardAcls() throws Exception {
-        Client client = internalCluster().masterClient();
+        Client client = client();
         ThreadContext threadContext = client.threadPool().getThreadContext();
         try (StoredContext cxt = threadContext.stashContext()) {
             log.info("Starting seeding of SearchGuard ACLs...");
@@ -193,9 +197,23 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
     protected Settings additionalNodeSettings() {
         return Settings.EMPTY;
     }
-
+    
     @Override
-    protected Settings nodeSettings(int nodeOrdinal) {
+    protected Settings nodeSettings() {
+        basedir = System.getenv("PROJECT_DIR");
+
+        keyStore = basedir + "/src/it/resources/keystore.jks";
+        trustStore = basedir + "/src/it/resources/truststore.jks";
+        testContext = new HashMap<>();
+        
+        final String masterUrl = apiServer.getMockServer().url("/").toString();
+        System.setProperty(Config.KUBERNETES_MASTER_SYSTEM_PROPERTY, masterUrl);
+        System.setProperty("kubernetes.trust.certificates", "true");
+        System.setProperty("kubernetes.keystore.file", keyStore);
+        System.setProperty("kubernetes.keystore.passphrase", password);
+        System.setProperty("kubernetes.truststore.file", keyStore);
+        System.setProperty("kubernetes.truststore.passphrase", password);
+        System.setProperty("sg.display_lic_none", "true");
         String tmp;
         try {
             tmp = Files.createTempDirectory(null).toAbsolutePath().toString();
@@ -209,8 +227,6 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
                 .putList("searchguard.nodes_dn", "CN=*")
                 .put(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ".searchguard")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED, true)
-                .put(ConfigurationSettings.SG_CLIENT_KS_PATH, keyStore)
-                .put(ConfigurationSettings.SG_CLIENT_TS_PATH, trustStore)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_TYPE, "JKS")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH, keyStore)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_PASSWORD, password)
@@ -224,6 +240,7 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_TYPE, "JKS")
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, trustStore)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD, password)
+                .put("searchguard.enterprise_modules_enabled", false)
                 .put("searchguard.ssl.transport.enable_openssl_if_available", false)
                 .put("searchguard.ssl.transport.enforce_hostname_verification", false)
                 .put("searchguard.ssl.transport.resolve_hostname", false)
@@ -240,7 +257,7 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
     }
     
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends Plugin>> getPlugins() {
         return Arrays.asList(OpenShiftElasticSearchPlugin.class);
     }
     
@@ -250,34 +267,11 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
         return address;
     }
     
-    @Override
-    protected int numberOfShards() {
-        return 1;
-    }
-
-    @Override
-    protected int numberOfReplicas() {
-        return 1;
-    }
-    
     @Before
-    public void setup() throws Exception {
-        basedir = System.getenv("PROJECT_DIR");
-
-        keyStore = basedir + "/src/it/resources/keystore.jks";
-        trustStore = basedir + "/src/it/resources/truststore.jks";
-        testContext = new HashMap<>();
-
-        final String masterUrl = apiServer.getMockServer().url("/").toString();
-        System.setProperty(Config.KUBERNETES_MASTER_SYSTEM_PROPERTY, masterUrl);
-        System.setProperty("kubernetes.trust.certificates", "true");
-        System.setProperty("kubernetes.keystore.file", keyStore);
-        System.setProperty("kubernetes.keystore.passphrase", password);
-        System.setProperty("kubernetes.truststore.file", keyStore);
-        System.setProperty("kubernetes.truststore.passphrase", password);
-        System.setProperty("sg.display_lic_none", "true");
-
+    @Override
+    public void setUp() throws Exception {
         log.debug("--------- Starting ES Node ----------");
+        super.setUp();
         log.debug("--------- Waiting for the cluster to go green ----------");
         ensureGreen();
 
@@ -332,7 +326,7 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
         ThreadContext threadContext = client().threadPool().getThreadContext();
         try (StoredContext cxt = threadContext.stashContext()) {
             threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            ClusterStateResponse response = admin().cluster().prepareState().get();
+            ClusterStateResponse response = client().admin().cluster().prepareState().get();
             Iterator<ObjectObjectCursor<String, IndexMetaData>> iterator = response.getState().getMetaData().indices().iterator();
             while (iterator.hasNext()) {
                 ObjectObjectCursor<String, IndexMetaData> c = (ObjectObjectCursor<String, IndexMetaData>) iterator.next();
@@ -348,7 +342,7 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
     }
 
     protected void dumpDocument(String index, String type, String id) throws Exception {
-        Client client = internalCluster().masterClient();
+        Client client = client();
         ThreadContext threadContext = client.threadPool().getThreadContext();
         try (StoredContext cxt = threadContext.stashContext()) {
             threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
@@ -661,19 +655,21 @@ public abstract class ElasticsearchIntegrationTest extends ESIntegTestCase{
         return sw.toString();
     }
 
-    protected static XContentBuilder readXContent(final Reader reader, final XContentType contentType) throws IOException {
+    protected static BytesReference readXContent(final Reader reader, final XContentType xContentType) throws IOException {
+        BytesReference retVal;
         XContentParser parser = null;
         try {
-            parser = XContentFactory.xContent(contentType).createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, reader);
+            parser = XContentFactory.xContent(xContentType).createParser(NamedXContentRegistry.EMPTY, SearchGuardDeprecationHandler.INSTANCE, reader);
             parser.nextToken();
             final XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.copyCurrentStructure(parser);
-            return builder;
+            retVal = BytesReference.bytes(builder);
         } finally {
             if (parser != null) {
                 parser.close();
             }
         }
+        return retVal;
     }
 
     public static String encodeBasicHeader(final String username, final String password) {

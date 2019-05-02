@@ -172,21 +172,19 @@ public class PluginClient {
         });
     }
 
-    public CreateIndexResponse copyIndex(final String index, final String target, Settings settings, String... types)
+    public CreateIndexResponse copyIndex(final String index, final String target, Settings settings, String type)
             throws InterruptedException, ExecutionException, IOException {
         return execute(new Callable<CreateIndexResponse>() {
 
             @Override
             public CreateIndexResponse call() throws Exception {
-                LOGGER.trace("Copying {} index to {} for types {}", index, target, types);
+                LOGGER.trace("Copying {} index to {} for type {}", index, target, type);
                 GetIndexResponse response = getIndices(index);
                 CreateIndexRequestBuilder builder = client.admin().indices().prepareCreate(target);
                 if(settings != null) {
                     builder.setSettings(settings);
                 }
-                for (String type : types) {
-                    builder.addMapping(type, response.mappings().get(index).get(type).getSourceAsMap());
-                }
+                builder.addMapping(type, response.mappings().get(index).get(type).getSourceAsMap());
                 return builder.get();
             }
             

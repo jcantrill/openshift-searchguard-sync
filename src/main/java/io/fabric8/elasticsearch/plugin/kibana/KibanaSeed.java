@@ -35,7 +35,7 @@ import io.fabric8.elasticsearch.plugin.model.Project;
 
 public class KibanaSeed implements ConfigurationSettings {
 
-    private static final String CONFIG_DOC_TYPE = "config";
+    private static final String CONFIG_DOC_TYPE = "doc";
     private static final String INDICIES_TYPE = "index-pattern";
     private static final Logger LOGGER = LogManager.getLogger(KibanaSeed.class);
 

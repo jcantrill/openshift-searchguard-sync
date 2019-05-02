@@ -18,8 +18,10 @@ package io.fabric8.elasticsearch;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+
+import com.carrotsearch.randomizedtesting.RandomizedRunner;
 
 import io.fabric8.elasticsearch.plugin.ConfigurationSettings;
 import io.fabric8.elasticsearch.plugin.KibanaIndexMode;
@@ -29,12 +31,9 @@ import io.fabric8.elasticsearch.plugin.kibana.KibanaUtils;
  * This integration test verifies the ability (or not) to access Elasticsearch
  * depending upon what credentials are provided
  */
+//@RunWith(RandomizedRunner.class)
 public class GeneralUserWorkflowIntegrationTest extends ElasticsearchIntegrationTest {
 
-
-    @Before
-    public void setup() throws Exception {
-    }
 
     /*
      * This test verifies a basic nonadmin workflow, specifically to address 
