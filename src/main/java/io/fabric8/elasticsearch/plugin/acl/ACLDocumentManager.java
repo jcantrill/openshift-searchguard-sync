@@ -100,7 +100,32 @@ public class ACLDocumentManager implements ConfigurationSettings {
             LOGGER.debug(message, obj);
         }
     }
+    
+    @SuppressWarnings("rawtypes")
+    class SyncAndExpireOperation implements ACLDocumentOperation {
+        
+        private SyncFromContextOperation sync;
+        private ExpireOperation expire;
+        
+        SyncAndExpireOperation(OpenshiftRequestContext context){
+            sync = new SyncFromContextOperation(context);
+            expire = new ExpireOperation(System.currentTimeMillis());
+        }
 
+        @Override
+        public void execute(Collection<SearchGuardACLDocument> docs) {
+            sync.execute(docs);
+            expire.execute(docs);
+        }
+
+        @Override
+        public BulkRequest buildRequest(Client client, BulkRequestBuilder builder,
+                Collection<SearchGuardACLDocument> docs) throws IOException {
+            return expire.buildRequest(client, builder, docs);
+        }
+        
+    }
+    
     @SuppressWarnings("rawtypes")
     class SyncFromContextOperation implements ACLDocumentOperation {
 
@@ -196,12 +221,8 @@ public class ACLDocumentManager implements ConfigurationSettings {
         }
     }
 
-    public void expire() {
-        syncAcl(new ExpireOperation(System.currentTimeMillis()));
-    }
-
     public void syncAcl(OpenshiftRequestContext context) {
-        if(!syncAcl(new SyncFromContextOperation(context))){
+        if(!syncAcl(new SyncAndExpireOperation(context))){
             LOGGER.warn("Unable to sync ACLs for request from user: {}", context.getUser());
         }
     }    

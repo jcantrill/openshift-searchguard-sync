@@ -101,7 +101,8 @@ public class DynamicACLFilter implements ConfigurationSettings {
             if (threadContext.getTransient(OPENSHIFT_REQUEST_CONTEXT) != null) {
                 OpenshiftRequestContext requestContext = threadContext.getTransient(OPENSHIFT_REQUEST_CONTEXT);
                 request = utils.modifyRequest(request, requestContext, channel);
-                if (requestContext != OpenshiftRequestContext.EMPTY) {
+                Boolean syncAndSeed = threadContext.getTransient(SYNC_AND_SEED);
+                if (requestContext != OpenshiftRequestContext.EMPTY && Boolean.TRUE.equals(syncAndSeed)) {
                     utils.logRequest(request);
                     final String kbnVersion = getKibanaVersion(request);
                     kibanaSeed.setDashboards(requestContext, kbnVersion, cdmProjectPrefix);

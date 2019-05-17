@@ -23,11 +23,15 @@ import static io.fabric8.elasticsearch.plugin.KibanaIndexMode.UNIQUE;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.ArrayUtils;
@@ -36,7 +40,12 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
+
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 
 import io.fabric8.elasticsearch.plugin.model.Project;
 import io.fabric8.elasticsearch.util.RequestUtils;
@@ -44,7 +53,7 @@ import io.fabric8.elasticsearch.util.RequestUtils;
 /**
  * Context of information regarding a use
  */
-public class OpenshiftRequestContextFactory {
+public class OpenshiftRequestContextFactory extends CacheLoader<String, OpenshiftRequestContextFactory.OpenshiftRequestContext> {
 
     private static final Logger LOGGER = Loggers.getLogger(OpenshiftRequestContextFactory.class);
 
@@ -53,11 +62,15 @@ public class OpenshiftRequestContextFactory {
     private final String[] operationsProjects;
     private final String kibanaPrefix;
     private String kibanaIndexMode;
+    private LoadingCache<String, OpenshiftRequestContext> contextCache;
+    private ThreadContext threadContext;
 
     public OpenshiftRequestContextFactory(
             final Settings settings,
             final RequestUtils utils,
-            final OpenshiftAPIService apiService) {
+            final OpenshiftAPIService apiService,
+            final ThreadContext threadContext){
+        this.threadContext = threadContext;
         this.apiService = apiService;
         this.utils = utils;
         this.operationsProjects = settings.getAsArray(ConfigurationSettings.OPENSHIFT_CONFIG_OPS_PROJECTS,
@@ -69,6 +82,30 @@ public class OpenshiftRequestContextFactory {
             this.kibanaIndexMode = UNIQUE;
         }
         LOGGER.info("Using kibanaIndexMode: '{}'", this.kibanaIndexMode);
+        
+        contextCache = CacheBuilder.newBuilder()
+                .maximumSize(settings.getAsInt(ConfigurationSettings.OPENSHIFT_CONTEXT_CACHE_MAXSIZE, 
+                        ConfigurationSettings.DEFAULT_OPENSHIFT_CONTEXT_CACHE_MAXSIZE))
+                .expireAfterWrite(settings.getAsInt(ConfigurationSettings.OPENSHIFT_CONTEXT_CACHE_EXPIRE_MINUTES, 
+                        ConfigurationSettings.DEFAULT_OPENSHIFT_CONTEXT_CACHE_EXPIRE_MINUTES), TimeUnit.MINUTES)
+                .build(this);
+    }
+    
+
+    @Override
+    public OpenshiftRequestContextFactory.OpenshiftRequestContext load(String token) throws Exception {
+        String user = utils.assertUser(token);
+        boolean isClusterAdmin = utils.isOperationsUser(user, token);
+        if(user.contains("\\")){
+            user = user.replace("\\", "/");
+        }
+        Set<Project> projects = new HashSet<>();
+        if(!isClusterAdmin) { //skip fetching projects because getting full access anyway
+            projects = listProjectsFor(user, token);
+        }
+        Collection<String> backend = PluginServiceFactory.getBackendRoleRetriever().retrieveBackendRoles(token);
+        threadContext.putTransient(ConfigurationSettings.SYNC_AND_SEED, Boolean.TRUE);
+        return new OpenshiftRequestContext(user, token, isClusterAdmin, projects, getKibanaIndex(user, isClusterAdmin), this.kibanaIndexMode, backend);
     }
 
     /**
@@ -80,24 +117,21 @@ public class OpenshiftRequestContextFactory {
      */
     public OpenshiftRequestContext create(final RestRequest request) throws Exception {
         logRequest(request);
-
-        Set<Project> projects = new HashSet<>();
-        boolean isClusterAdmin = false;
-        String user = utils.getUser(request);
+        if(!PluginServiceFactory.isReady()) {
+            return OpenshiftRequestContext.EMPTY;
+        }
         String token = utils.getBearerToken(request);
         if (StringUtils.isNotBlank(token)){
-            user = utils.assertUser(request);
-            isClusterAdmin = utils.isOperationsUser(request);
-            if(user.contains("\\")){
-                user = user.replace("\\", "/");
+            try {
+                return contextCache.get(token);
+            } catch(ExecutionException e) {
+                LOGGER.error("Error trying to fetch user's context from the cache",e);
             }
-            projects = listProjectsFor(user, token);
-            return new OpenshiftRequestContext(user, token, isClusterAdmin, projects, getKibanaIndex(user, isClusterAdmin), this.kibanaIndexMode);
         }
         LOGGER.debug("Returning EMPTY request context; either was provided client cert or empty token.");
         return OpenshiftRequestContext.EMPTY;
     }
-
+    
     private void logRequest(final RestRequest request) {
         if (LOGGER.isDebugEnabled()) {
             String user = utils.getUser(request);
@@ -174,7 +208,7 @@ public class OpenshiftRequestContextFactory {
     public static class OpenshiftRequestContext {
 
         public static final OpenshiftRequestContext EMPTY = new OpenshiftRequestContext("", "", false,
-                new HashSet<Project>(), "", "");
+                new HashSet<Project>(), "", "", Collections.emptyList());
 
         private final String user;
         private final String token;
@@ -182,15 +216,17 @@ public class OpenshiftRequestContextFactory {
         private final Set<Project> projects;
         private final String kibanaIndex;
         private final String kibanaIndexMode;
+        private final Collection<String> backendRoles;
 
         public OpenshiftRequestContext(final String user, final String token, boolean isClusterAdmin, 
-                Set<Project> projects, String kibanaIndex, final String kibanaIndexMode) {
+                Set<Project> projects, String kibanaIndex, final String kibanaIndexMode, Collection<String> backend) {
             this.user = user;
             this.token = token;
             this.isClusterAdmin = isClusterAdmin;
             this.projects = new HashSet<>(projects);
             this.kibanaIndex = kibanaIndex;
             this.kibanaIndexMode = kibanaIndexMode;
+            this.backendRoles = backend;
         }
 
         /**
@@ -230,5 +266,10 @@ public class OpenshiftRequestContextFactory {
         public String getKibanaIndexMode() {
             return this.kibanaIndexMode;
         }
+
+        public Collection<String> getBackendRoles() {
+            return backendRoles;
+        }
     }
+
 }
